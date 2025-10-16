@@ -3,12 +3,12 @@ from functools import wraps
 import csv, os
 
 app = Flask(__name__)
-# یک secret_key ساده — در production بهتر است آن را از محیط (ENV) ست کنی
-app.secret_key = os.environ.get("SECRET_KEY", "change_me_now_please")
+# برای امنیت در production مقدار SECRET_KEY را در تنظیمات Render قرار بده
+app.secret_key = os.environ.get("SECRET_KEY", "change_this_secret_at_prod")
 
 CSV_FILE = "registrations.csv"
 
-# -------- Basic Auth برای پنل ادمین -----------
+# -------- Admin Basic Auth ----------
 ADMIN_USER = "admin"
 ADMIN_PASS = "z.azimi3131383"
 
@@ -27,36 +27,35 @@ def requires_auth(f):
         return f(*args, **kwargs)
     return decorated
 
-# --------- کمکی: ذخیره نهایی به CSV با هدر فارسی -------------
+# -------- Persian headers for CSV (consistent order) ----------
 PERSIAN_HEADERS = ["نام", "نام خانوادگی", "کد ملی", "شماره دانشجویی",
                    "نام دانشگاه", "نام دانشکده", "جنسیت", "شماره تلفن",
                    "مقطع تحصیلی", "رشتهٔ تحصیلی", "گواهی"]
 
+# -------- Save to CSV with BOM (utf-8-sig) so Excel reads correctly ----------
 def save_to_csv(final_dict):
     file_exists = os.path.isfile(CSV_FILE)
-    with open(CSV_FILE, "a", newline="", encoding="utf-8") as f:
+    with open(CSV_FILE, "a", newline="", encoding="utf-8-sig") as f:
         writer = csv.DictWriter(f, fieldnames=PERSIAN_HEADERS)
         if not file_exists:
             writer.writeheader()
-        # مرتب‌سازی به هدرهای فارسی
         row = {
-            "نام": final_dict.get("first_name",""),
-            "نام خانوادگی": final_dict.get("last_name",""),
-            "کد ملی": final_dict.get("national_code",""),
-            "شماره دانشجویی": final_dict.get("student_number",""),
-            "نام دانشگاه": final_dict.get("university",""),
-            "نام دانشکده": final_dict.get("faculty",""),
-            "جنسیت": final_dict.get("gender",""),
-            "شماره تلفن": final_dict.get("phone",""),
-            "مقطع تحصیلی": final_dict.get("degree",""),
-            "رشتهٔ تحصیلی": final_dict.get("major",""),
-            "گواهی": final_dict.get("certificate","")
+            "نام": final_dict.get("first_name", ""),
+            "نام خانوادگی": final_dict.get("last_name", ""),
+            "کد ملی": final_dict.get("national_code", ""),
+            "شماره دانشجویی": final_dict.get("student_number", ""),
+            "نام دانشگاه": final_dict.get("university", ""),
+            "نام دانشکده": final_dict.get("faculty", ""),
+            "جنسیت": final_dict.get("gender", ""),
+            "شماره تلفن": final_dict.get("phone", ""),
+            "مقطع تحصیلی": final_dict.get("degree", ""),
+            "رشتهٔ تحصیلی": final_dict.get("major", ""),
+            "گواهی": final_dict.get("certificate", "")
         }
         writer.writerow(row)
 
-# ---------------------- قالب‌ها (HTML) ----------------------
-# همه صفحات راست‌چین (dir="rtl") و دارای گرادینت و انیمیشن ملایم
-
+# -------------------- HTML templates (embedded) --------------------
+# All pages: RTL, gradient backgrounds, validation and UX improvements.
 home_html = '''
 <!doctype html>
 <html lang="fa" dir="rtl">
@@ -71,20 +70,27 @@ body { background: linear-gradient(180deg,#e6f7ff,#ffffff); font-family: Tahoma,
 .card {
   margin-top:30px; padding:20px; border-radius:15px;
   box-shadow:0 8px 30px rgba(0,0,0,0.08);
-  background: linear-gradient(135deg,#ffffff, #f0fcff);
+  background: linear-gradient(135deg,#ffffff,#f4fdff);
 }
 .form-control:focus { box-shadow:0 0 10px rgba(13,110,253,0.12); border-color:#0d6efd; transition:0.25s; }
 input[type="text"] { background: linear-gradient(to right,#f8ffff,#ffffff); }
-input:invalid { border-color: #dc3545; box-shadow: 0 0 6px rgba(220,53,69,0.12); }
+input:invalid { border-color: #dc3545; box-shadow: 0 0 6px rgba(220,53,69,0.08); }
 .invalid-feedback { display:block; }
-.btn-primary:hover { transform: translateY(-2px); box-shadow:0 6px 18px rgba(13,110,253,0.12); }
+.btn-primary:hover { transform: translateY(-2px); box-shadow:0 6px 18px rgba(13,110,253,0.08); }
 .progress { height:18px; border-radius:10px; }
-.admin-btn { position: absolute; top: 18px; left: 18px; } /* دکمه ادمین در گوشه بالا */
+.admin-btn { position: absolute; top: 14px; left: 14px; z-index: 10; }
+.text-end label { float: right; }
+ul { padding-inline-start: 18px; margin-bottom: 0; }
+@media (max-width:575px){
+  .card { padding:16px; margin-top:15px; }
+}
 </style>
 </head>
 <body>
 <div class="container position-relative">
+  <!-- admin button (goes to protected panel, browser will ask for credentials) -->
   <a href="/admin_pannel" class="btn btn-outline-dark admin-btn">ورود ادمین</a>
+
   <div class="card col-12 col-md-8 mx-auto animate__animated animate__fadeIn">
     <h2 class="mb-3 text-center">فرم ثبت‌نام کارگاه</h2>
 
@@ -93,8 +99,15 @@ input:invalid { border-color: #dc3545; box-shadow: 0 0 6px rgba(220,53,69,0.12);
     </div>
 
     <form method="POST" action="/register" class="needs-validation" novalidate>
-      <div class="mb-3 text-end"><label class="form-label">نام:</label><input type="text" class="form-control" name="first_name" required></div>
-      <div class="mb-3 text-end"><label class="form-label">نام خانوادگی:</label><input type="text" class="form-control" name="last_name" required></div>
+      <div class="mb-3 text-end">
+        <label class="form-label">نام:</label>
+        <input type="text" class="form-control" name="first_name" required>
+      </div>
+
+      <div class="mb-3 text-end">
+        <label class="form-label">نام خانوادگی:</label>
+        <input type="text" class="form-control" name="last_name" required>
+      </div>
 
       <div class="mb-3 text-end">
         <label class="form-label">کد ملی:</label>
@@ -108,8 +121,15 @@ input:invalid { border-color: #dc3545; box-shadow: 0 0 6px rgba(220,53,69,0.12);
         <div class="invalid-feedback">لطفاً فقط عدد وارد کنید.</div>
       </div>
 
-      <div class="mb-3 text-end"><label class="form-label">نام دانشگاه:</label><input type="text" class="form-control" name="university" required></div>
-      <div class="mb-3 text-end"><label class="form-label">نام دانشکده:</label><input type="text" class="form-control" name="faculty" required></div>
+      <div class="mb-3 text-end">
+        <label class="form-label">نام دانشگاه:</label>
+        <input type="text" class="form-control" name="university" required>
+      </div>
+
+      <div class="mb-3 text-end">
+        <label class="form-label">نام دانشکده:</label>
+        <input type="text" class="form-control" name="faculty" required>
+      </div>
 
       <div class="mb-3 text-end">
         <label class="form-label">جنسیت:</label>
@@ -137,7 +157,10 @@ input:invalid { border-color: #dc3545; box-shadow: 0 0 6px rgba(220,53,69,0.12);
         </select>
       </div>
 
-      <div class="mb-3 text-end"><label class="form-label">رشتهٔ تحصیلی:</label><input type="text" class="form-control" name="major" required></div>
+      <div class="mb-3 text-end">
+        <label class="form-label">رشتهٔ تحصیلی:</label>
+        <input type="text" class="form-control" name="major" required>
+      </div>
 
       <div class="form-check mb-3 text-end">
         <input class="form-check-input" type="checkbox" id="agree" required>
@@ -167,20 +190,19 @@ input:invalid { border-color: #dc3545; box-shadow: 0 0 6px rgba(220,53,69,0.12);
         event.preventDefault();
         event.stopPropagation();
       } else {
-        // اگر فرم معتبر است، progress را ابتدا تغییر می‌دهیم (برای UX)
+        // UX: update progress before redirect
         var pb = document.getElementById("progressBar");
         if (pb) { pb.style.width = "66%"; pb.innerText = "مرحله 2 از 3"; }
       }
       form.classList.add('was-validated');
-    }, false)
-  })
+    }, false);
+  });
 })();
 </script>
 </body>
 </html>
 '''
 
-# ---------- صفحه گواهی ----------
 certificate_html = '''
 <!doctype html>
 <html lang="fa" dir="rtl">
@@ -230,7 +252,6 @@ document.getElementById("certNo").addEventListener("change", function(){ documen
 </html>
 '''
 
-# ---------- صفحه تشکر ----------
 thanks_html = '''
 <!doctype html>
 <html lang="fa" dir="rtl">
@@ -257,7 +278,6 @@ body { background: linear-gradient(180deg,#e6f7ff,#ffffff); font-family: Tahoma,
 </html>
 '''
 
-# ---------- صفحه ادمین (محافظت‌شده) ----------
 admin_html = '''
 <!doctype html>
 <html lang="fa" dir="rtl">
@@ -321,7 +341,7 @@ $(document).ready(function(){
 </html>
 '''
 
-# ---------------------- روت‌ها و منطق ----------------------
+# ---------------------- Routes & Logic ----------------------
 
 @app.route("/", methods=["GET"])
 def home():
@@ -329,7 +349,7 @@ def home():
 
 @app.route("/register", methods=["POST"])
 def register():
-    # دریافت اطلاعات اولیه و ذخیره در session (برای ذخیره نهایی بعد از انتخاب گواهی)
+    # save form data into session for final save after certificate choice
     form = request.form.to_dict()
     session['form_data'] = {
         "first_name": form.get("first_name","").strip(),
@@ -343,46 +363,41 @@ def register():
         "degree": form.get("degree","").strip(),
         "major": form.get("major","").strip()
     }
-    # هدایت به صفحه درخواست گواهی
     return redirect("/certificate")
 
 @app.route("/certificate", methods=["GET"])
 def certificate():
-    # اگر session خالی بود، برگرد به صفحه اصلی
     if 'form_data' not in session:
         return redirect("/")
     return render_template_string(certificate_html)
 
 @app.route("/finish", methods=["POST"])
 def finish():
-    # از session داده‌ها را بردار، مقدار گواهی را اضافه کن، ذخیره کن و پاک کن
     if 'form_data' not in session:
         return redirect("/")
     cert_choice = request.form.get("certificate", "")
     data = session.get('form_data', {})
     data['certificate'] = cert_choice
-    # ذخیره نهایی در CSV (هدرهای فارسی)
     save_to_csv(data)
-    # پاک کردن session
+    # clear session
     session.pop('form_data', None)
-    # اگر خواهان گواهی بود، می‌توان اینجا redirect به درگاه واقعی زد.
+    # if certificate requested -> simulate redirect to payment (replace with real gateway link)
     if cert_choice == "خواهان گواهی هستم":
-        # به جای لینک زیر، لینک واقعی درگاه را قرار بده
-        return "<h3 style='text-align:center;margin-top:50px;'>درحال انتقال به صفحه پرداخت... (در نسخه آزمایشی اینجا پیام نمایش داده می‌شود)</h3>"
+        return "<h3 style='text-align:center;margin-top:50px;'>درحال انتقال به صفحه پرداخت... (برای تست اینجا پیام نمایش داده می‌شود)</h3>"
     return redirect("/thanks")
 
 @app.route("/thanks", methods=["GET"])
 def thanks():
     return render_template_string(thanks_html)
 
-# ------------- پنل ادمین و دانلود -------------
+# Admin panel (protected)
 @app.route("/admin_pannel", methods=["GET"])
 @requires_auth
 def admin_pannel():
     rows = []
     headers = PERSIAN_HEADERS
     if os.path.exists(CSV_FILE):
-        with open(CSV_FILE, newline="", encoding="utf-8") as f:
+        with open(CSV_FILE, newline="", encoding="utf-8-sig") as f:
             reader = csv.DictReader(f)
             rows = list(reader)
     return render_template_string(admin_html, rows=rows, headers=headers)
@@ -391,10 +406,11 @@ def admin_pannel():
 @requires_auth
 def download_csv():
     if os.path.exists(CSV_FILE):
-        return send_file(CSV_FILE, as_attachment=True)
-    return "هیچ فایلی برای دانلود موجود نیست."
+        # send_file will return the CSV with BOM we wrote (utf-8-sig)
+        return send_file(CSV_FILE, as_attachment=True, download_name="registrations.csv")
+    return "فایلی برای دانلود موجود نیست."
 
-# ---------------------- اجرا ----------------------
+# ---------------------- Run ----------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
