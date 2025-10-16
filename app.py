@@ -19,40 +19,48 @@ home_html = '''
 <style>
 body {background-color:#f2f2f2;}
 .card {margin-top:30px; padding:20px; border-radius:15px; box-shadow:0 5px 15px rgba(0,0,0,0.1);}
+.form-control:focus {box-shadow:0 0 10px #0dcaf0; border-color:#0dcaf0; transition:0.3s;}
 .btn-primary:hover {background-color:#0d6efd; transform:scale(1.05); transition:0.2s;}
+.progress {height:20px; border-radius:10px;}
 </style>
 </head>
 <body>
 <div class="container">
 <div class="card col-12 col-md-8 mx-auto animate__animated animate__fadeIn">
 <h2 class="mb-3 text-center">فرم ثبت‌نام کارگاه</h2>
-<form method="POST" action="/register">
+
+<!-- Progress Bar -->
+<div class="progress mb-4">
+  <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" role="progressbar" style="width:33%" id="progressBar">مرحله 1 از 3</div>
+</div>
+
+<form method="POST" action="/register" id="regForm">
   <div class="mb-3">
-    <label>نام:</label>
+    <label data-bs-toggle="tooltip" title="نام خود را وارد کنید">نام:</label>
     <input type="text" class="form-control" name="first_name" required>
   </div>
   <div class="mb-3">
-    <label>نام خانوادگی:</label>
+    <label data-bs-toggle="tooltip" title="نام خانوادگی خود را وارد کنید">نام خانوادگی:</label>
     <input type="text" class="form-control" name="last_name" required>
   </div>
   <div class="mb-3">
-    <label>کد ملی:</label>
+    <label data-bs-toggle="tooltip" title="کد ملی باید ۱۰ رقم باشد">کد ملی:</label>
     <input type="text" class="form-control" name="national_code" required pattern="\\d{10}" title="کد ملی باید ۱۰ رقم باشد">
   </div>
   <div class="mb-3">
-    <label>شماره دانشجویی:</label>
+    <label data-bs-toggle="tooltip" title="فقط عدد وارد کنید">شماره دانشجویی:</label>
     <input type="text" class="form-control" name="student_number" required pattern="\\d+" title="فقط عدد وارد کنید">
   </div>
   <div class="mb-3">
-    <label>نام دانشگاه:</label>
+    <label data-bs-toggle="tooltip" title="نام دانشگاه">نام دانشگاه:</label>
     <input type="text" class="form-control" name="university_name" required>
   </div>
   <div class="mb-3">
-    <label>نام دانشکده:</label>
+    <label data-bs-toggle="tooltip" title="نام دانشکده">نام دانشکده:</label>
     <input type="text" class="form-control" name="faculty_name" required>
   </div>
   <div class="mb-3">
-    <label>جنسیت:</label>
+    <label data-bs-toggle="tooltip" title="جنسیت خود را انتخاب کنید">جنسیت:</label>
     <select class="form-select" name="gender" required>
       <option value="">انتخاب کنید</option>
       <option value="مرد">مرد</option>
@@ -60,17 +68,18 @@ body {background-color:#f2f2f2;}
     </select>
   </div>
   <div class="mb-3">
-    <label>شماره تلفن:</label>
+    <label data-bs-toggle="tooltip" title="فقط عدد وارد کنید">شماره تلفن:</label>
     <input type="text" class="form-control" name="phone_number" required pattern="\\d+" title="فقط عدد وارد کنید">
   </div>
   <div class="mb-3">
-    <label>مقطع تحصیلی:</label>
+    <label data-bs-toggle="tooltip" title="مقطع تحصیلی">مقطع تحصیلی:</label>
     <input type="text" class="form-control" name="degree" required>
   </div>
   <div class="mb-3">
-    <label>رشتهٔ تحصیلی:</label>
+    <label data-bs-toggle="tooltip" title="رشته تحصیلی">رشتهٔ تحصیلی:</label>
     <input type="text" class="form-control" name="major" required>
   </div>
+
   <div class="form-check mb-3">
     <input class="form-check-input" type="checkbox" id="agree" required>
     <label class="form-check-label" for="agree">
@@ -82,12 +91,23 @@ body {background-color:#f2f2f2;}
       </ul>
     </label>
   </div>
-  <button type="submit" class="btn btn-primary w-100">ثبت و ادامه</button>
+  <button type="submit" class="btn btn-primary w-100 mt-3">ثبت و ادامه</button>
 </form>
 </div>
 </div>
-</body>
-</html>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// tooltip
+var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) { return new bootstrap.Tooltip(tooltipTriggerEl) })
+
+// progress bar
+document.getElementById("regForm").addEventListener("submit", function(){
+    document.getElementById("progressBar").style.width = "66%";
+    document.getElementById("progressBar").innerText = "مرحله 2 از 3";
+});
+</script>
 '''
 
 # ---------------------- صفحه گواهی ----------------------
@@ -155,7 +175,7 @@ thanks_html = '''
 </head>
 <body>
 <div class="container">
-<div class="card col-12 col-md-6 mx-auto mt-5 text-center">
+<div class="card col-12 col-md-6 mx-auto mt-5 text-center animate__animated animate__fadeIn">
 <h2>ثبت نام شما با موفقیت انجام شد</h2>
 <p>لطفا کانال زیر را در بستر تلگرام دنبال کنید:</p>
 <p><strong>@article_workshop1</strong></p>
@@ -177,108 +197,106 @@ admin_html = '''
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
 <style>
 .card {margin-top:30px; padding:20px; border-radius:15px; box-shadow:0 5px 15px rgba(0,0,0,0.1);}
-#adminTable tbody tr:hover {background-color: #ffe082; cursor:pointer; transition:0.2s;}
+#adminTable tbody tr:hover {background-color:#e0f7fa; transition:0.3s;}
+.btn:hover {transform:scale(1.05); transition:0.2s;}
 </style>
 </head>
 <body>
 <div class="container">
-<div class="card col-12 mx-auto shadow-lg p-3 mb-5 bg-white rounded animate__animated animate__fadeIn">
-<h2 class="mb-3 text-center">ثبت‌نامی‌ها</h2>
-<div class="mb-3">
-<input type="text" id="searchInput" class="form-control" placeholder="جستجو در ثبت‌نامی‌ها...">
-</div>
-<div class="table-responsive">
-<table id="adminTable" class="table table-striped table-hover table-bordered align-middle">
-<thead class="table-dark sticky-top">
+<div class="card col-12 animate__animated animate__fadeIn">
+<h2 class="text-center mb-3">پنل مدیریت ثبت‌نام‌ها</h2>
+<a href="/download_csv" class="btn btn-success mb-3">دانلود CSV</a>
+<table class="table table-striped table-bordered" id="adminTable">
+<thead class="table-dark">
 <tr>
-{% for header in headers %}<th>{{ header }}</th>{% endfor %}
+  <th>نام</th><th>نام خانوادگی</th><th>کد ملی</th><th>شماره دانشجویی</th><th>دانشگاه</th><th>دانشکده</th><th>جنسیت</th><th>شماره تلفن</th><th>مقطع</th><th>رشته</th><th>گواهی</th>
 </tr>
 </thead>
 <tbody>
-{% for row in rows %}
+{% for row in data %}
 <tr>
-{% for value in row.values() %}
-<td>{{ value }}</td>
-{% endfor %}
+  <td>{{row.first_name}}</td>
+  <td>{{row.last_name}}</td>
+  <td>{{row.national_code}}</td>
+  <td>{{row.student_number}}</td>
+  <td>{{row.university_name}}</td>
+  <td>{{row.faculty_name}}</td>
+  <td>{{row.gender}}</td>
+  <td>{{row.phone_number}}</td>
+  <td>{{row.degree}}</td>
+  <td>{{row.major}}</td>
+  <td>{{row.certificate}}</td>
 </tr>
 {% endfor %}
 </tbody>
 </table>
 </div>
-<div class="text-center mt-3">
-<a href="/admin_pannel/download" class="btn btn-success btn-lg shadow-sm">دانلود CSV</a>
 </div>
-</div>
-</div>
-
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css"/>
 <script>
-document.getElementById("searchInput").addEventListener("keyup", function() {
-    var filter = this.value.toLowerCase();
-    var rows = document.querySelectorAll("#adminTable tbody tr");
-    rows.forEach(row => {
-        row.style.display = Array.from(row.cells).some(
-            cell => cell.textContent.toLowerCase().includes(filter)
-        ) ? "" : "none";
-    });
+$(document).ready(function(){
+  $('#adminTable').DataTable({
+    "paging":true,
+    "searching":true,
+    "info":false,
+    "scrollX": true
+  });
 });
 </script>
 </body>
 </html>
 '''
 
-# ---------------------- روت‌ها ----------------------
-@app.route("/")
+# ---------------------- مسیرها ----------------------
+@app.route("/", methods=["GET"])
 def home():
     return render_template_string(home_html)
 
 @app.route("/register", methods=["POST"])
 def register():
-    data = {
-        "نام": request.form["first_name"],
-        "نام خانوادگی": request.form["last_name"],
-        "کد ملی": request.form["national_code"],
-        "شماره دانشجویی": request.form["student_number"],
-        "نام دانشگاه": request.form["university_name"],
-        "نام دانشکده": request.form["faculty_name"],
-        "جنسیت": request.form["gender"],
-        "شماره تلفن": request.form["phone_number"],
-        "مقطع تحصیلی": request.form["degree"],
-        "رشتهٔ تحصیلی": request.form["major"]
-    }
-
-    file_exists = os.path.exists(CSV_FILE)
+    # دریافت اطلاعات
+    data = request.form.to_dict()
+    # ذخیره در CSV
+    file_exists = os.path.isfile(CSV_FILE)
     with open(CSV_FILE, "a", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=data.keys())
         if not file_exists:
             writer.writeheader()
         writer.writerow(data)
+    return redirect("/certificate")
+
+@app.route("/certificate", methods=["GET", "POST"])
+def certificate():
+    if request.method == "POST":
+        cert = request.form.get("certificate")
+        return redirect("/thanks?certificate=" + cert)
     return render_template_string(certificate_html)
 
 @app.route("/finish", methods=["POST"])
 def finish():
     cert = request.form.get("certificate")
-    if cert == "yes":
-        # جای صفحه پرداخت
-        return "<h2 style='text-align:center;margin-top:50px;'>به صفحه پرداخت منتقل می‌شوید...</h2>"
+    return redirect("/thanks?certificate=" + cert)
+
+@app.route("/thanks")
+def thanks():
     return render_template_string(thanks_html)
 
 @app.route("/admin_pannel")
 def admin_panel():
-    rows = []
-    headers = []
-    if os.path.exists(CSV_FILE):
+    if not os.path.exists(CSV_FILE):
+        data = []
+    else:
         with open(CSV_FILE, newline="", encoding="utf-8") as f:
             reader = csv.DictReader(f)
-            headers = reader.fieldnames
-            rows = list(reader)
-    return render_template_string(admin_html, rows=rows, headers=headers)
+            data = list(reader)
+    return render_template_string(admin_html, data=data)
 
-@app.route("/admin_pannel/download")
+@app.route("/download_csv")
 def download_csv():
-    if os.path.exists(CSV_FILE):
-        return send_file(CSV_FILE, as_attachment=True)
-    return "فایلی برای دانلود موجود نیست."
+    return send_file(CSV_FILE, as_attachment=True)
 
 # ---------------------- اجرا ----------------------
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=5000, debug=True)
