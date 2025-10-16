@@ -14,13 +14,18 @@ def save_to_csv(data):
             writer.writeheader()
         writer.writerow(data)
 
-# قالب پایه با Bootstrap
+# قالب پایه با Bootstrap و فونت Vazir و ریسپانسیو
 base_head = """
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v33.003/Vazir-font-face.css" rel="stylesheet" type="text/css" />
 <style>
-body { font-family: Vazir, Tahoma, sans-serif; background-color: #f7f7f7; direction: rtl; }
-.card { margin-top: 50px; padding: 20px; border-radius: 10px; background-color: #fff; box-shadow: 0px 5px 15px rgba(0,0,0,0.1); }
-button { margin-top: 15px; }
+body { font-family: Vazir, Tahoma, sans-serif; background: linear-gradient(to bottom, #e0f7fa, #ffffff); direction: rtl; }
+.card { margin-top: 50px; padding: 30px; border-radius: 15px; background-color: #ffffffcc; box-shadow: 0px 8px 25px rgba(0,0,0,0.15); transition: transform 0.2s; }
+.card:hover { transform: translateY(-5px); }
+button { margin-top: 20px; border-radius: 8px; box-shadow: 0px 4px 10px rgba(0,0,0,0.2); }
+button:hover { opacity: 0.9; }
+.form-control { border-radius: 8px; }
 </style>
 """
 
@@ -34,7 +39,7 @@ def index():
         else:
             return render_template_string(base_head + """
             <div class="container">
-                <div class="card mx-auto col-md-6 text-center">
+                <div class="card col-12 col-md-6 mx-auto text-center">
                     <h3>لطفاً برای ادامه تیک مطالعه موارد فوق را بزنید.</h3>
                     <a href="/" class="btn btn-warning mt-3">بازگشت</a>
                 </div>
@@ -42,7 +47,7 @@ def index():
             """)
     return render_template_string(base_head + """
     <div class="container">
-      <div class="card mx-auto col-md-6">
+      <div class="card col-12 col-md-6 mx-auto">
         <h2 class="mb-3">با سلام</h2>
         <p>لطفا نکات زیر را به دقت مطالعه فرمایید:</p>
         <ol>
@@ -81,33 +86,17 @@ def form_page():
         return redirect("/certificate")
     return render_template_string(base_head + """
     <div class="container">
-      <div class="card mx-auto col-md-6">
+      <div class="card col-12 col-md-6 mx-auto">
         <h2 class="mb-3">فرم اطلاعات شخصی</h2>
         <form method="POST">
+            {% for label, name in [('نام','first_name'),('نام خانوادگی','last_name'),('کد ملی','national_code'),
+                                   ('شماره دانشجویی','student_number'),('نام دانشگاه','university'),
+                                   ('نام دانشکده','faculty'),('شماره تلفن','phone'),('رشته تحصیلی','major')] %}
             <div class="mb-3">
-              <label class="form-label">نام:</label>
-              <input type="text" class="form-control" name="first_name" required>
+              <label class="form-label">{{ label }}:</label>
+              <input type="text" class="form-control" name="{{ name }}" required>
             </div>
-            <div class="mb-3">
-              <label class="form-label">نام خانوادگی:</label>
-              <input type="text" class="form-control" name="last_name" required>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">کد ملی:</label>
-              <input type="number" class="form-control" name="national_code" required>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">شماره دانشجویی:</label>
-              <input type="number" class="form-control" name="student_number" required>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">نام دانشگاه:</label>
-              <input type="text" class="form-control" name="university" required>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">نام دانشکده:</label>
-              <input type="text" class="form-control" name="faculty" required>
-            </div>
+            {% endfor %}
             <div class="mb-3">
               <label class="form-label">جنسیت:</label>
               <select class="form-select" name="gender" required>
@@ -117,10 +106,6 @@ def form_page():
               </select>
             </div>
             <div class="mb-3">
-              <label class="form-label">شماره تلفن:</label>
-              <input type="tel" class="form-control" name="phone" required>
-            </div>
-            <div class="mb-3">
               <label class="form-label">مقطع تحصیلی:</label>
               <select class="form-select" name="level" required>
                 <option value="">انتخاب کنید</option>
@@ -128,10 +113,6 @@ def form_page():
                 <option value="ارشد">ارشد</option>
                 <option value="دکتری">دکتری</option>
               </select>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">رشته تحصیلی:</label>
-              <input type="text" class="form-control" name="major" required>
             </div>
             <button type="submit" class="btn btn-success">ادامه</button>
         </form>
@@ -153,7 +134,7 @@ def certificate_page():
             return redirect("/thankyou")
     return render_template_string(base_head + """
     <div class="container">
-      <div class="card mx-auto col-md-6">
+      <div class="card col-12 col-md-6 mx-auto">
         <h2 class="mb-3">درخواست گواهی</h2>
         <form method="POST">
             <div class="form-check">
@@ -175,7 +156,7 @@ def certificate_page():
 def thankyou():
     return render_template_string(base_head + """
     <div class="container">
-      <div class="card mx-auto col-md-6 text-center">
+      <div class="card col-12 col-md-6 mx-auto text-center">
         <h2 class="mb-3">ثبت شما با موفقیت انجام شد!</h2>
         <p>لطفا کانال زیر را در بستر تلگرام دنبال کنید:</p>
         <a href="https://t.me/article_workshop1" class="btn btn-info">@article_workshop1</a>
