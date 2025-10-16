@@ -4,9 +4,9 @@ import os
 
 app = Flask(__name__)
 CSV_FILE = "responses.csv"
-ADMIN_PASSWORD = "1234"  # می‌توانی رمز دلخواهت را تغییر دهی
+ADMIN_PASSWORD = "1234"  # رمز ورود ادمین
 
-# تابع ذخیره داده‌ها
+# ---------------------- ذخیره داده‌ها ----------------------
 def save_to_csv(data):
     file_exists = os.path.isfile(CSV_FILE)
     with open(CSV_FILE, mode='a', newline='', encoding='utf-8') as f:
@@ -15,7 +15,7 @@ def save_to_csv(data):
             writer.writeheader()
         writer.writerow(data)
 
-# قالب پایه با Bootstrap و فونت Vazir و ریسپانسیو
+# ---------------------- قالب پایه ----------------------
 base_head = """
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -27,6 +27,9 @@ body { font-family: Vazir, Tahoma, sans-serif; background: linear-gradient(to bo
 button { margin-top: 20px; border-radius: 8px; box-shadow: 0px 4px 10px rgba(0,0,0,0.2); }
 button:hover { opacity: 0.9; }
 .form-control { border-radius: 8px; }
+.table-responsive { max-height: 500px; overflow-y: auto; }
+#adminTable th, #adminTable td { text-align: center; vertical-align: middle; }
+#adminTable tbody tr:hover { background-color: #ffe082; cursor: pointer; transition: 0.2s; }
 </style>
 """
 
@@ -67,7 +70,7 @@ def index():
     </div>
     """)
 
-# ---------------------- صفحه دوم: اطلاعات شخصی ----------------------
+# ---------------------- فرم اطلاعات شخصی ----------------------
 @app.route("/form", methods=["GET", "POST"])
 def form_page():
     if request.method == "POST":
@@ -90,14 +93,33 @@ def form_page():
       <div class="card col-12 col-md-6 mx-auto">
         <h2 class="mb-3">فرم اطلاعات شخصی</h2>
         <form method="POST">
-            {% for label, name in [('نام','first_name'),('نام خانوادگی','last_name'),('کد ملی','national_code'),
-                                   ('شماره دانشجویی','student_number'),('نام دانشگاه','university'),
-                                   ('نام دانشکده','faculty'),('شماره تلفن','phone'),('رشته تحصیلی','major')] %}
+            {% for label, name in [('نام','first_name'),('نام خانوادگی','last_name')] %}
             <div class="mb-3">
               <label class="form-label">{{ label }}:</label>
               <input type="text" class="form-control" name="{{ name }}" required>
             </div>
             {% endfor %}
+
+            <div class="mb-3">
+              <label class="form-label">کد ملی:</label>
+              <input type="text" class="form-control" name="national_code" required pattern="\d{10}" title="کد ملی باید ۱۰ رقم باشد">
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">شماره دانشجویی:</label>
+              <input type="text" class="form-control" name="student_number" required pattern="\d+" title="فقط اعداد مجاز هستند">
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">نام دانشگاه:</label>
+              <input type="text" class="form-control" name="university" required>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">نام دانشکده:</label>
+              <input type="text" class="form-control" name="faculty" required>
+            </div>
+
             <div class="mb-3">
               <label class="form-label">جنسیت:</label>
               <select class="form-select" name="gender" required>
@@ -106,6 +128,12 @@ def form_page():
                 <option value="زن">زن</option>
               </select>
             </div>
+
+            <div class="mb-3">
+              <label class="form-label">شماره تلفن:</label>
+              <input type="text" class="form-control" name="phone" required pattern="\d+" title="فقط اعداد مجاز هستند">
+            </div>
+
             <div class="mb-3">
               <label class="form-label">مقطع تحصیلی:</label>
               <select class="form-select" name="level" required>
@@ -115,13 +143,19 @@ def form_page():
                 <option value="دکتری">دکتری</option>
               </select>
             </div>
+
+            <div class="mb-3">
+              <label class="form-label">رشته تحصیلی:</label>
+              <input type="text" class="form-control" name="major" required>
+            </div>
+
             <button type="submit" class="btn btn-success">ادامه</button>
         </form>
       </div>
     </div>
     """)
 
-# ---------------------- صفحه سوم: سوال گواهی ----------------------
+# ---------------------- صفحه درخواست گواهی ----------------------
 @app.route("/certificate", methods=["GET", "POST"])
 def certificate_page():
     if request.method == "POST":
@@ -130,7 +164,7 @@ def certificate_page():
         data["گواهی"] = choice
         save_to_csv(data)
         if choice == "yes":
-            return redirect("https://zarinpal.com/payment-link")  # لینک پرداخت
+            return redirect("https://zarinpal.com/payment-link")  # لینک پرداخت واقعی
         else:
             return redirect("/thankyou")
     return render_template_string(base_head + """
@@ -166,10 +200,9 @@ def thankyou():
     </div>
     """)
 
-# ---------------------- صفحه ادمین ----------------------
+# ---------------------- ورود ادمین ----------------------
 @app.route("/admin_pannel", methods=["GET", "POST"])
 def admin_panel():
-    # بررسی رمز عبور ساده
     if request.method == "POST":
         password = request.form.get("password")
         if password == ADMIN_PASSWORD:
@@ -183,7 +216,6 @@ def admin_panel():
                 </div>
             </div>
             """)
-
     return render_template_string(base_head + """
     <div class="container">
       <div class="card col-12 col-md-6 mx-auto text-center">
@@ -196,7 +228,7 @@ def admin_panel():
     </div>
     """)
 
-# ---------------------- مشاهده و دانلود CSV ----------------------
+# ---------------------- مشاهده جدول ادمین و دانلود CSV ----------------------
 @app.route("/admin_pannel/view")
 def admin_view():
     if not os.path.exists(CSV_FILE):
@@ -217,40 +249,58 @@ def admin_view():
     if not rows:
         return "<h3>هیچ ثبت‌نامی وجود ندارد.</h3>"
 
-    # ساخت جدول HTML
-    table = "<table class='table table-bordered table-striped table-hover'><thead><tr>"
-    for header in rows[0].keys():
-        table += f"<th>{header}</th>"
-    table += "</tr></thead><tbody>"
-    for row in rows:
-        table += "<tr>"
-        for value in row.values():
-            table += f"<td>{value}</td>"
-        table += "</tr>"
-    table += "</tbody></table>"
+    headers = rows[0].keys()
 
-    return render_template_string(base_head + f"""
+    return render_template_string(base_head + """
     <div class="container">
         <div class="card col-12 mx-auto" style="overflow-x:auto;">
             <h2 class="mb-3 text-center">ثبت‌نامی‌ها</h2>
+            <div class="mb-3">
+              <input type="text" id="searchInput" class="form-control" placeholder="جستجو در ثبت‌نامی‌ها...">
+            </div>
             <div class="table-responsive">
-                {Markup(table)}
+                <table id="adminTable" class="table table-striped table-bordered table-hover">
+                    <thead class="table-primary">
+                        <tr>
+                            {% for header in headers %}<th>{{ header }}</th>{% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in rows %}
+                        <tr>
+                            {% for value in row.values() %}
+                            <td>{{ value }}</td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
             <div class="text-center mt-3">
                 <a href="/admin_pannel/download" class="btn btn-success">دانلود CSV</a>
             </div>
         </div>
     </div>
-    """)
 
-# ---------------------- دانلود CSV ----------------------
+    <script>
+    document.getElementById("searchInput").addEventListener("keyup", function() {
+        var filter = this.value.toLowerCase();
+        var rows = document.querySelectorAll("#adminTable tbody tr");
+        rows.forEach(row => {
+            row.style.display = Array.from(row.cells).some(
+                cell => cell.textContent.toLowerCase().includes(filter)
+            ) ? "" : "none";
+        });
+    });
+    </script>
+    """, rows=rows, headers=headers)
+
 @app.route("/admin_pannel/download")
 def download_csv():
-    if not os.path.exists(CSV_FILE):
-        return "<h3>هیچ ثبت‌نامی وجود ندارد.</h3>"
-    return send_file(CSV_FILE, as_attachment=True)
+    if os.path.exists(CSV_FILE):
+        return send_file(CSV_FILE, as_attachment=True)
+    return "فایلی برای دانلود موجود نیست."
 
-# ---------------------- اجرای برنامه ----------------------
+# ---------------------- اجرا ----------------------
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(debug=True, host="0.0.0.0", port=5000)
