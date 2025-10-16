@@ -1,7 +1,6 @@
 from flask import Flask, render_template_string, request, redirect, send_file
 import csv
 import os
-from io import StringIO
 
 app = Flask(__name__)
 
@@ -13,7 +12,9 @@ PERSIAN_HEADERS = [
     "شماره تلفن", "مقطع تحصیلی", "رشتهٔ تحصیلی", "گواهی"
 ]
 
-# صفحه اول اطلاعیه
+ADMIN_PASSWORD = "z.azimi3131383"
+
+# صفحه اول اطلاعیه با دکمه ادمین
 HOME_PAGE = """
 <!doctype html>
 <html lang="fa" dir="rtl">
@@ -24,8 +25,11 @@ HOME_PAGE = """
     body { font-family: Tahoma, sans-serif; background: linear-gradient(to bottom, #f0f8ff, #dbeeff); padding: 20px; }
     .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 0 15px rgba(0,0,0,0.2); }
     input[type=checkbox]{transform: scale(1.5);}
-    button { background-color: #4CAF50; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
-    button:hover { background-color: #45a049; }
+    button { border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
+    button.submit-btn { background-color: #4CAF50; color: white; }
+    button.submit-btn:hover { background-color: #45a049; }
+    button.admin-btn { background-color:#FF5722; color:white; margin-top:10px; }
+    button.admin-btn:hover { background-color:#E64A19; }
   </style>
 </head>
 <body>
@@ -39,7 +43,11 @@ HOME_PAGE = """
 </ol>
 <form method="post" action="/form">
   <label><input type="checkbox" name="read_rules" required> موارد فوق را مطالعه کردم</label><br><br>
-  <button type="submit">تایید و ادامه</button>
+  <button type="submit" class="submit-btn">تایید و ادامه</button>
+</form>
+<hr>
+<form action="/admin_pannel" method="get">
+  <button class="admin-btn">ورود ادمین</button>
 </form>
 </div>
 </body>
@@ -142,42 +150,6 @@ a { text-decoration:none; color:#2196F3; }
 </html>
 """
 
-def save_to_csv(final_dict):
-    file_exists = os.path.isfile(CSV_FILE)
-    with open(CSV_FILE, "a", newline="", encoding="utf-8-sig") as f:
-        writer = csv.DictWriter(f, fieldnames=PERSIAN_HEADERS, delimiter=';')  # <- تغییر برای اکسل
-        if not file_exists:
-            writer.writeheader()
-        row = {
-            "نام": final_dict.get("first_name", ""),
-            "نام خانوادگی": final_dict.get("last_name", ""),
-            "کد ملی": final_dict.get("national_code", ""),
-            "شماره دانشجویی": final_dict.get("student_number", ""),
-            "نام دانشگاه": final_dict.get("university", ""),
-            "نام دانشکده": final_dict.get("faculty", ""),
-            "جنسیت": final_dict.get("gender", ""),
-            "شماره تلفن": final_dict.get("phone", ""),
-            "مقطع تحصیلی": final_dict.get("degree", ""),
-            "رشتهٔ تحصیلی": final_dict.get("major", ""),
-            "گواهی": final_dict.get("certificate", "")
-        }
-        writer.writerow(row)
-
-@app.route("/", methods=["GET","POST"])
-def home():
-    return render_template_string(HOME_PAGE)
-
-@app.route("/form", methods=["POST"])
-def form_page():
-    return render_template_string(FORM_PAGE)
-
-@app.route("/submit", methods=["POST"])
-def submit():
-    data = request.form.to_dict()
-    save_to_csv(data)
-    return render_template_string(THANK_PAGE)
-
-# صفحه ادمین
 ADMIN_PAGE = """
 <!doctype html>
 <html lang="fa" dir="rtl">
@@ -232,36 +204,79 @@ function filterTable() {
 </html>
 """
 
-from flask import Response
+def save_to_csv(final_dict):
+    file_exists = os.path.isfile(CSV_FILE)
+    with open(CSV_FILE, "a", newline="", encoding="utf-8-sig") as f:
+        writer = csv.DictWriter(f, fieldnames=PERSIAN_HEADERS, delimiter=';')
+        if not file_exists:
+            writer.writeheader()
+        row = {
+            "نام": final_dict.get("first_name", ""),
+            "نام خانوادگی": final_dict.get("last_name", ""),
+            "کد ملی": final_dict.get("national_code", ""),
+            "شماره دانشجویی": final_dict.get("student_number", ""),
+            "نام دانشگاه": final_dict.get("university", ""),
+            "نام دانشکده": final_dict.get("faculty", ""),
+            "جنسیت": final_dict.get("gender", ""),
+            "شماره تلفن": final_dict.get("phone", ""),
+            "مقطع تحصیلی": final_dict.get("degree", ""),
+            "رشتهٔ تحصیلی": final_dict.get("major", ""),
+            "گواهی": final_dict.get("certificate", "")
+        }
+        writer.writerow(row)
 
-ADMIN_PASSWORD = "z.azimi3131383"
+@app.route("/", methods=["GET", "POST"])
+def home():
+    return render_template_string(HOME_PAGE)
+
+@app.route("/form", methods=["POST"])
+def form_page():
+    if request.form.get("read_rules") != "on":
+        return redirect("/")
+    return render_template_string(FORM_PAGE)
+
+@app.route("/submit", methods=["POST"])
+def submit():
+    data = request.form.to_dict()
+    # بررسی اعداد
+    if not data["national_code"].isdigit() or len(data["national_code"]) != 10:
+        return "کد ملی باید ۱۰ رقم باشد"
+    if not data["student_number"].isdigit():
+        return "شماره دانشجویی باید عدد باشد"
+    if not data["phone"].isdigit():
+        return "شماره تلفن باید عدد باشد"
+
+    save_to_csv(data)
+    # شرطی بودن
+    if data.get("certificate") == "می‌خواهم گواهی بگیرم":
+        return "<h2>لینک درگاه پرداخت اینجا قرار می‌گیرد</h2>"
+    return render_template_string(THANK_PAGE)
 
 @app.route("/admin_pannel", methods=["GET", "POST"])
 def admin():
     if request.method == "POST":
-        password = request.form.get("password")
+        password = request.form.get("password","")
         if password != ADMIN_PASSWORD:
             return "رمز اشتباه است"
-        # بارگذاری CSV
-        if not os.path.exists(CSV_FILE):
-            rows = []
-        else:
-            with open(CSV_FILE, newline="", encoding="utf-8-sig") as f:
+        # نمایش داده‌ها
+        rows=[]
+        if os.path.exists(CSV_FILE):
+            with open(CSV_FILE, encoding="utf-8-sig") as f:
                 reader = csv.DictReader(f, delimiter=';')
-                rows = list(reader)
+                rows=[row for row in reader]
         return render_template_string(ADMIN_PAGE, headers=PERSIAN_HEADERS, rows=rows)
-    return """
-    <form method='post'>
-      <input type='password' name='password' placeholder='رمز ادمین'>
-      <button type='submit'>ورود</button>
+    return '''
+    <form method="post">
+    <input type="password" name="password" placeholder="رمز ادمین" required>
+    <button type="submit">ورود</button>
     </form>
-    """
+    '''
 
 @app.route("/download")
 def download_csv():
-    if not os.path.exists(CSV_FILE):
-        return "فایل موجود نیست"
-    return send_file(CSV_FILE, as_attachment=True)
+    if os.path.exists(CSV_FILE):
+        return send_file(CSV_FILE, as_attachment=True)
+    return "هیچ ثبت نامی وجود ندارد"
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
