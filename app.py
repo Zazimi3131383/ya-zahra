@@ -1,9 +1,10 @@
-from flask import Flask, render_template_string, request, redirect
+from flask import Flask, render_template_string, request, redirect, send_file, Markup
 import csv
 import os
 
 app = Flask(__name__)
 CSV_FILE = "responses.csv"
+ADMIN_PASSWORD = "1234"  # می‌توانی رمز دلخواهت را تغییر دهی
 
 # تابع ذخیره داده‌ها
 def save_to_csv(data):
@@ -29,7 +30,7 @@ button:hover { opacity: 0.9; }
 </style>
 """
 
-# صفحه اول
+# ---------------------- صفحه اول ----------------------
 @app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
@@ -66,7 +67,7 @@ def index():
     </div>
     """)
 
-# صفحه دوم: اطلاعات شخصی
+# ---------------------- صفحه دوم: اطلاعات شخصی ----------------------
 @app.route("/form", methods=["GET", "POST"])
 def form_page():
     if request.method == "POST":
@@ -120,7 +121,7 @@ def form_page():
     </div>
     """)
 
-# صفحه سوم: سوال شرطی گواهی
+# ---------------------- صفحه سوم: سوال گواهی ----------------------
 @app.route("/certificate", methods=["GET", "POST"])
 def certificate_page():
     if request.method == "POST":
@@ -151,7 +152,7 @@ def certificate_page():
     </div>
     """)
 
-# صفحه تشکر و لینک تلگرام
+# ---------------------- صفحه تشکر ----------------------
 @app.route("/thankyou")
 def thankyou():
     return render_template_string(base_head + """
@@ -165,6 +166,91 @@ def thankyou():
     </div>
     """)
 
+# ---------------------- صفحه ادمین ----------------------
+@app.route("/admin_pannel", methods=["GET", "POST"])
+def admin_panel():
+    # بررسی رمز عبور ساده
+    if request.method == "POST":
+        password = request.form.get("password")
+        if password == ADMIN_PASSWORD:
+            return redirect("/admin_pannel/view")
+        else:
+            return render_template_string(base_head + """
+            <div class="container">
+                <div class="card col-12 col-md-6 mx-auto text-center">
+                    <h3>رمز عبور اشتباه است!</h3>
+                    <a href="/admin_pannel" class="btn btn-warning mt-3">بازگشت</a>
+                </div>
+            </div>
+            """)
+
+    return render_template_string(base_head + """
+    <div class="container">
+      <div class="card col-12 col-md-6 mx-auto text-center">
+        <h2 class="mb-3">ورود به صفحه ادمین</h2>
+        <form method="POST">
+            <input type="password" class="form-control mb-3" name="password" placeholder="رمز عبور">
+            <button type="submit" class="btn btn-primary">ورود</button>
+        </form>
+      </div>
+    </div>
+    """)
+
+# ---------------------- مشاهده و دانلود CSV ----------------------
+@app.route("/admin_pannel/view")
+def admin_view():
+    if not os.path.exists(CSV_FILE):
+        return render_template_string(base_head + """
+        <div class="container">
+            <div class="card col-12 mx-auto text-center">
+                <h3>هیچ ثبت‌نامی هنوز انجام نشده.</h3>
+            </div>
+        </div>
+        """)
+
+    rows = []
+    with open(CSV_FILE, newline='', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            rows.append(row)
+
+    if not rows:
+        return "<h3>هیچ ثبت‌نامی وجود ندارد.</h3>"
+
+    # ساخت جدول HTML
+    table = "<table class='table table-bordered table-striped table-hover'><thead><tr>"
+    for header in rows[0].keys():
+        table += f"<th>{header}</th>"
+    table += "</tr></thead><tbody>"
+    for row in rows:
+        table += "<tr>"
+        for value in row.values():
+            table += f"<td>{value}</td>"
+        table += "</tr>"
+    table += "</tbody></table>"
+
+    return render_template_string(base_head + f"""
+    <div class="container">
+        <div class="card col-12 mx-auto" style="overflow-x:auto;">
+            <h2 class="mb-3 text-center">ثبت‌نامی‌ها</h2>
+            <div class="table-responsive">
+                {Markup(table)}
+            </div>
+            <div class="text-center mt-3">
+                <a href="/admin_pannel/download" class="btn btn-success">دانلود CSV</a>
+            </div>
+        </div>
+    </div>
+    """)
+
+# ---------------------- دانلود CSV ----------------------
+@app.route("/admin_pannel/download")
+def download_csv():
+    if not os.path.exists(CSV_FILE):
+        return "<h3>هیچ ثبت‌نامی وجود ندارد.</h3>"
+    return send_file(CSV_FILE, as_attachment=True)
+
+# ---------------------- اجرای برنامه ----------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
