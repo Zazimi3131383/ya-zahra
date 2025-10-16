@@ -38,5 +38,10 @@ def thank():
     # می‌تونی این داده را در فایل ذخیره کنی (در مراحل بعد یاد می‌گیریم)
     return f"<h3>سپاس از شرکت شما! شهر شما: {city}</h3>"
 
+import os
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
+
+
