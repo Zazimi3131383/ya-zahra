@@ -262,7 +262,6 @@ h3 { text-align:center; margin-bottom:1.5rem; color:#ffdf5d; }
 table.dataTable thead { background: rgba(255,255,255,0.2); color:#fff; }
 table.dataTable tbody tr:hover { background: rgba(255,255,255,0.1); }
 table.dataTable tbody td, table.dataTable tbody th { color:#000; text-align:center; }
-input, textarea, select { color: #000 !important; }
 a.btn { margin-bottom:1rem; background: linear-gradient(90deg,#ffdf5d,#ffb84d); color:#000; border:none; border-radius:10px; padding:0.5rem 1rem; text-decoration:none; transition: all 0.3s ease; }
 a.btn:hover { background: linear-gradient(90deg,#ffd633,#ffa31a); transform:scale(1.05); }
 </style>
@@ -287,7 +286,7 @@ language:{search:"جستجو:",paginate:{next:"بعدی",previous:"قبلی"}}
 </script>
 </body>
 </html>
-...
+'''
 
 # ---------------- Routes -----------------
 @app.route("/", methods=["GET"])
@@ -343,5 +342,3 @@ if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
-
-
