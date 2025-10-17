@@ -120,7 +120,7 @@ button:hover {
     <li>2_ هزینه واریزی برای صدور گواهی به هیچ عنوان عودت داده نمی‌شود.</li>
     <li>3_ از مخاطبان گرامی درخواست می‌شود در صورت تمایل به صدور گواهی، پس از ثبت اطلاعات و واریز هزینه، عکس فیش آن را ذخیره کرده تا در سامانه بارگذاری کنید.</li>
   </ul>
-  <button onclick="window.location.href='/form'">تأیید و ادامه</button>
+  <button onclick="window.location.href='/start_form'">تأیید و ادامه</button>
 </div>
 </body>
 </html>
@@ -297,7 +297,6 @@ def start_form():
 
 @app.route("/", methods=["GET"])
 def rules():
-    session.clear()  # پاک کردن session برای شروع از اول
     return render_template_string(rules_html)
 
 @app.route("/form", methods=["GET", "POST"])
@@ -367,4 +366,5 @@ if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
