@@ -31,7 +31,7 @@ def requires_auth(f):
 def save_to_csv(final_dict):
     file_exists = os.path.isfile(CSV_FILE)
     with open(CSV_FILE, "a", newline="", encoding="utf-8-sig") as f:
-        writer = csv.DictWriter(f, fieldnames=PERSIAN_HEADERS)
+        writer = csv.DictWriter(f, fieldnames=PERSIAN_HEADERS, delimiter=',')  # ویرگول به عنوان جداکننده
         if not file_exists:
             writer.writeheader()
         writer.writerow({
@@ -342,3 +342,4 @@ if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
