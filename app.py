@@ -31,7 +31,7 @@ def requires_auth(f):
 def save_to_csv(final_dict):
     file_exists = os.path.isfile(CSV_FILE)
     with open(CSV_FILE, "a", newline="", encoding="utf-8-sig") as f:
-        writer = csv.DictWriter(f, fieldnames=PERSIAN_HEADERS, delimiter=';')  # استفاده از ; به عنوان جداکننده
+        writer = csv.DictWriter(f, fieldnames=PERSIAN_HEADERS)
         if not file_exists:
             writer.writeheader()
         writer.writerow({
@@ -291,36 +291,55 @@ language:{search:"جستجو:",paginate:{next:"بعدی",previous:"قبلی"}}
 # ---------------- Routes -----------------
 @app.route("/", methods=["GET"])
 def rules():
+    session.clear()  # پاک کردن session برای شروع از اول
     return render_template_string(rules_html)
 
 @app.route("/form", methods=["GET", "POST"])
 def form_page():
-    return render_template_string(form_html)
+    if request.method == "GET":
+        # اگر مستقیم اومده باشه از rules
+        if 'form_started' not in session:
+            return redirect("/")
+        return render_template_string(form_html)
+    
+    # POST
+    form = request.form.to_dict()
+    session['form_data'] = form
+    session['form_completed'] = True
+    return redirect("/certificate")
 
 @app.route("/register", methods=["POST"])
 def register():
+    if 'form_started' not in session:
+        return redirect("/")
     form = request.form.to_dict()
     session['form_data'] = form
+    session['form_completed'] = True
     return redirect("/certificate")
 
 @app.route("/certificate", methods=["GET"])
 def certificate():
-    if 'form_data' not in session: return redirect("/")
+    if 'form_completed' not in session:
+        return redirect("/")
     return render_template_string(certificate_html)
 
 @app.route("/finish", methods=["POST"])
 def finish():
-    if 'form_data' not in session: return redirect("/")
+    if 'form_completed' not in session:
+        return redirect("/")
     data = session['form_data']
     data['certificate'] = request.form.get('certificate','')
     save_to_csv(data)
     session.pop('form_data', None)
+    session.pop('form_completed', None)
     if data['certificate'].startswith("خواهان گواهی هستم"):
         return "<h3 style='text-align:center;margin-top:50px;'>درحال انتقال به صفحه پرداخت...</h3>"
     return redirect("/thanks")
 
 @app.route("/thanks")
 def thanks():
+    if 'form_completed' in session:
+        return redirect("/")
     return render_template_string(thanks_html)
 
 @app.route("/admin_pannel")
@@ -342,5 +361,3 @@ if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
-
-
