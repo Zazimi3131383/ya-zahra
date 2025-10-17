@@ -289,6 +289,12 @@ language:{search:"جستجو:",paginate:{next:"بعدی",previous:"قبلی"}}
 '''
 
 # ---------------- Routes -----------------
+@app.route("/start_form")
+def start_form():
+    session.clear()               # پاک کردن session قبلی (اگر بود)
+    session['form_started'] = True
+    return redirect("/form")
+
 @app.route("/", methods=["GET"])
 def rules():
     session.clear()  # پاک کردن session برای شروع از اول
@@ -361,3 +367,4 @@ if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
