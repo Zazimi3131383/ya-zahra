@@ -1,6 +1,6 @@
 from flask import Flask, render_template_string, request, redirect, send_file, session, Response
 from functools import wraps
-import csv, os
+import csv, os, requests  # اضافه شده برای تلگرام
 
 app = Flask(__name__)
 # برای استفاده از session، حتماً یک کلید امن و مخفی در محیط واقعی تنظیم کنید
@@ -14,15 +14,12 @@ PERSIAN_HEADERS = ["نام", "نام خانوادگی", "کد ملی", "شمار
 
 # ---------------- Authentication -----------------
 def check_auth(username, password):
-    """بررسی صحت نام کاربری و رمز عبور ادمین"""
     return username == ADMIN_USER and password == ADMIN_PASS
 
 def authenticate():
-    """ارسال پاسخ برای درخواست احراز هویت"""
     return Response('احراز هویت لازم است', 401, {'WWW-Authenticate': 'Basic realm="Login Required"'})
 
 def requires_auth(f):
-    """Decorator برای مسیرهایی که نیاز به لاگین دارند"""
     @wraps(f)
     def decorated(*args, **kwargs):
         auth = request.authorization
@@ -31,9 +28,40 @@ def requires_auth(f):
         return f(*args, **kwargs)
     return decorated
 
+# ---------------- Telegram Notify -----------------
+def send_to_telegram(data):
+    """ارسال مشخصات فرم ثبت‌نام به تلگرام"""
+    token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+    if not token or not chat_id:
+        print("⚠️ Telegram token or chat_id not found in environment variables.")
+        return
+
+    message = (
+        "📋 *فرم جدید ثبت‌نام دریافت شد:*\n\n"
+        f"👤 *نام:* {data.get('first_name', '')}\n"
+        f"👤 *نام خانوادگی:* {data.get('last_name', '')}\n"
+        f"🆔 *کد ملی:* {data.get('national_code', '')}\n"
+        f"🎓 *شماره دانشجویی:* {data.get('student_number', '')}\n"
+        f"🏛 *دانشگاه:* {data.get('university', '')}\n"
+        f"🏫 *دانشکده:* {data.get('faculty', '')}\n"
+        f"🚻 *جنسیت:* {data.get('gender', '')}\n"
+        f"📞 *تلفن:* {data.get('phone', '')}\n"
+        f"📘 *مقطع:* {data.get('degree', '')}\n"
+        f"📗 *رشته:* {data.get('major', '')}\n"
+        f"📄 *گواهی:* {data.get('certificate', '')}"
+    )
+
+    try:
+        requests.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": chat_id, "text": message, "parse_mode": "Markdown"}
+        )
+    except Exception as e:
+        print("❌ خطا در ارسال پیام تلگرام:", e)
+
 # ---------------- Save to CSV -----------------
 def save_to_csv(final_dict):
-    """ذخیره اطلاعات نهایی در فایل CSV"""
     file_exists = os.path.isfile(CSV_FILE)
     with open(CSV_FILE, "a", newline="", encoding="utf-8-sig") as f:
         writer = csv.DictWriter(f, fieldnames=PERSIAN_HEADERS)
@@ -54,7 +82,6 @@ def save_to_csv(final_dict):
         })
 
 # ---------------- HTML Templates -----------------
-# (قوانین)
 rules_html = '''
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -88,7 +115,6 @@ button:hover { background: linear-gradient(90deg,#ffd633,#ffa31a); transform: sc
 </html>
 '''
 
-# (فرم اصلی)
 form_html = '''
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -139,7 +165,6 @@ button:hover { background:linear-gradient(90deg,#ffd633,#ffa31a); transform:scal
 </html>
 '''
 
-# (گواهی)
 certificate_html = '''
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -184,7 +209,6 @@ no.addEventListener('change',()=>document.getElementById('paymentInfo').style.di
 </html>
 '''
 
-# (تشکر)
 thanks_html = '''
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -210,7 +234,6 @@ a.btn:hover { background:linear-gradient(90deg,#ffd633,#ffa31a); transform:scale
 </html>
 '''
 
-# (پنل ادمین)
 admin_html = '''
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -257,73 +280,55 @@ language:{search:"جستجو:",paginate:{next:"بعدی",previous:"قبلی"}}
 # ---------------- Routes -----------------
 @app.route("/")
 def rules():
-    """مرحله اول: نمایش قوانین. با ورود به این صفحه، هر ثبت‌نام قبلی پاک می‌شود"""
     session.clear()
     return render_template_string(rules_html)
 
 @app.route("/start_form", methods=["POST"])
 def start_form():
-    """کاربر قوانین را تایید کرده و فرآیند را شروع می‌کند"""
-    session['step'] = 1  # نشان‌دهنده تایید مرحله قوانین
+    session['step'] = 1
     return redirect("/form")
 
 @app.route("/form", methods=["GET", "POST"])
 def form_page():
-    """مرحله دوم: دریافت اطلاعات کاربر"""
-    # اگر کاربر مرحله قبل را طی نکرده، به صفحه اول برود
     if session.get('step') != 1:
         return redirect("/")
 
     if request.method == "POST":
-        # اطلاعات فرم را در session ذخیره کن
         session['form_data'] = request.form.to_dict()
-        session['step'] = 2  # برو به مرحله بعد
+        session['step'] = 2
         return redirect("/certificate")
     
-    # اگر متد GET بود، فرم را نمایش بده
     return render_template_string(form_html)
 
 @app.route("/certificate", methods=["GET", "POST"])
 def certificate():
-    """مرحله سوم: انتخاب گواهی و ثبت نهایی"""
-    # اگر کاربر مرحله قبل را طی نکرده، به صفحه اول برود
     if session.get('step') != 2:
         return redirect("/")
 
     if request.method == "POST":
         data = session.get('form_data', {})
         data['certificate'] = request.form.get('certificate', '')
-        
-        # ذخیره نهایی اطلاعات
         save_to_csv(data)
-        
-        session['step'] = 3 # برو به مرحله پایانی (صفحه تشکر)
-        
-        # اگر گواهی انتخاب شده بود، به صفحه پرداخت برو (در اینجا شبیه‌سازی شده)
+        send_to_telegram(data)  # ارسال به تلگرام
+
+        session['step'] = 3
         if data['certificate'].startswith("خواهان گواهی هستم"):
             return "<h3 style='text-align:center;margin-top:50px;'>درحال انتقال به صفحه پرداخت...</h3>"
-        
+
         return redirect("/thanks")
 
-    # اگر متد GET بود، صفحه انتخاب گواهی را نمایش بده
     return render_template_string(certificate_html)
 
 @app.route("/thanks")
 def thanks():
-    """مرحله آخر: نمایش پیام تشکر"""
-    # اگر کاربر تمام مراحل را طی نکرده، به صفحه اول برود
     if session.get('step') != 3:
         return redirect("/")
-    
-    # سشن را پاک کن تا کاربر نتواند با رفرش به این صفحه برگردد
     session.clear()
     return render_template_string(thanks_html)
 
-# --- Admin Routes ---
 @app.route("/admin_pannel")
 @requires_auth
 def admin_pannel():
-    """نمایش پنل ادمین با لیست ثبت‌نام‌ها"""
     headers = PERSIAN_HEADERS
     rows = []
     if os.path.exists(CSV_FILE):
@@ -334,7 +339,6 @@ def admin_pannel():
 @app.route("/download_csv")
 @requires_auth
 def download_csv():
-    """دانلود فایل CSV ثبت‌نام‌ها"""
     return send_file(CSV_FILE, as_attachment=True)
 
 if __name__ == "__main__":
