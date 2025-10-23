@@ -432,7 +432,7 @@ def certificate():
         send_to_telegram(data)  # ارسال به تلگرام
 
         session['step'] = 3
-        if data['certificate'].startswith("خواهان گواهی هستم"):
+        if data['certificate'].startswith("خواهان گواهی هستم(50 هزار تومان)"):
             return "<h3 style='text-align:center;margin-top:50px;'>درحال انتقال به صفحه پرداخت...</h3>"
 
         return redirect("/thanks")
@@ -520,6 +520,7 @@ def download_csv_filtered():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
 
 
