@@ -117,6 +117,17 @@ def send_admin_list(chat_id):
     # data مثل: view_0 یا edit_3
     if not os.path.exists(CSV_FILE):
         return
+    if data == "report":
+    with open(CSV_FILE,'r',encoding='utf-8-sig') as f:
+        rows = list(csv.DictReader(f))
+    total = len(rows)
+    certified = sum(1 for r in rows if r['گواهی'].startswith("خواهان گواهی"))
+    free = total - certified
+    text = f"📊 گزارش سریع:\nکل ثبت‌نام‌ها: {total}\nخواهان گواهی: {certified}\nرایگان: {free}"
+    url = f"https://api.telegram.org/bot{os.environ.get('TELEGRAM_BOT_TOKEN')}/sendMessage"
+    requests.post(url, data={"chat_id": chat_id, "text": text})
+    return
+
     with open(CSV_FILE,'r',encoding='utf-8-sig') as f:
         rows = list(csv.DictReader(f))
 
@@ -509,6 +520,7 @@ def download_csv_filtered():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
 
 
