@@ -11,7 +11,17 @@ from flask import (
 )
 # ! توجه: در صورتی که از کتابخانه python-telegram-bot استفاده می‌کنید، باید آن را در محیط اجرا تنظیم کنید.
 # ! توابع تلگرام شما از طریق HTTP Request (requests) کار می‌کنند که برای Flask کافی است.
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+# از آنجایی که ممکن است کتابخانه telegram نصب نباشد، از آن در توابعی که فقط به API نیاز دارند استفاده نمی‌کنیم.
+try:
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+except ImportError:
+    # تعریف کلاس‌های دامی برای جلوگیری از خطا اگر telegram نصب نباشد
+    class InlineKeyboardButton:
+        def __init__(self, text, callback_data=None): pass
+    class InlineKeyboardMarkup:
+        def __init__(self, keyboard): self.keyboard = keyboard
+        def to_dict(self): return {'inline_keyboard': self.keyboard}
+        
 from functools import wraps
 import csv, os, requests
 import json
@@ -61,8 +71,8 @@ PERSIAN_HEADERS = [
     "فیش واریزی",  # ستون جدید
 ]
 
-# شماره کارت شما برای نمایش در صفحه پرداخت
-YOUR_CARD_NUMBER = "۶۰۳۷-۹۹۷۷-۹۹۷۷-۹۹۷۷"
+# ! اصلاح شد: شماره کارت انگلیسی و با خط تیره برای خوانایی بهتر
+YOUR_CARD_NUMBER = "6219-8618-7279-5239"
 
 # ! نام صاحب کارت: اول از متغیر محیطی بخوان، اگر نبود از مقدار پیش‌فرض استفاده کن
 YOUR_CARD_NAME = os.environ.get("YOUR_CARD_NAME", "زهرا پرتوی زیناب")
@@ -189,6 +199,8 @@ def send_admin_list_with_keyboard(chat_id):
     for idx, r in enumerate(rows):
         text = f"نام: {r['نام']} {r['نام خانوادگی']}\n"
         text += f"دانشگاه: {r['نام دانشگاه']}\nرشته: {r['رشتهٔ تحصیلی']}\nگواهی: {r['گواهی']}"
+        
+        # استفاده از کلاس‌های دامی برای جلوگیری از خطای ایمپورت
         keyboard = InlineKeyboardMarkup(
             [
                 [
@@ -202,12 +214,13 @@ def send_admin_list_with_keyboard(chat_id):
         url = (
             f"https://api.telegram.org/bot{os.environ.get('TELEGRAM_BOT_TOKEN')}/sendMessage"
         )
+        # استفاده از to_dict() برای سازگاری با کلاس دامی و تبدیل به JSON
         requests.post(
             url,
             data={
                 "chat_id": chat_id,
                 "text": text,
-                "reply_markup": json.dumps(keyboard.to_dict()), # .to_dict() اضافه شد
+                "reply_markup": json.dumps(keyboard.to_dict()), 
             },
         )
 
@@ -430,8 +443,7 @@ no.addEventListener('change',()=>document.getElementById('paymentInfo').style.di
 </html>
 """
 
-# --- ! صفحه جدید برای پرداخت و آپلود ---
-# ! این F-string برای رفع خطای SyntaxError اصلاح شد.
+# --- ! صفحه جدید برای پرداخت و آپلود با نوار پیشرفت ---
 payment_upload_html = f"""
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -445,6 +457,9 @@ body {{ margin:0; font-family:'Vazir',sans-serif; background:linear-gradient(135
 h1 {{ text-align:center; font-size:1.3rem; margin-bottom:1rem; color:#ffdf5d; }}
 p {{ text-align:center; }}
 .card-number-box {{
+    /* ! شماره کارت به صورت انگلیسی نمایش داده می‌شود */
+    direction: ltr; 
+    font-family: monospace, sans-serif;
     background: rgba(255,255,255,0.2);
     border-radius: 10px;
     padding: 1rem;
@@ -459,6 +474,8 @@ p {{ text-align:center; }}
 
 /* ! استایل برای نام صاحب کارت */
 .card-name {{
+    direction: rtl; /* نام فارسی به درستی نمایش داده شود */
+    font-family:'Vazir',sans-serif;
     font-size: 0.9rem;
     letter-spacing: 0px;
     margin-top: 0.5rem;
@@ -467,6 +484,8 @@ p {{ text-align:center; }}
 }}
 
 #copyMessage {{ text-align:center; color:#ffdf5d; font-size:0.9rem; visibility:hidden; }}
+#errorMessage {{ text-align:center; color:#ff6b6b; font-size:0.9rem; margin-top: 1rem; display: none; }}
+
 label {{ display:block; margin: 1rem 0 0.3rem; }}
 input[type="file"] {{ 
     width: 100%; 
@@ -477,6 +496,25 @@ input[type="file"] {{
     background: rgba(255,255,255,0.8);
     color: #000;
 }}
+
+/* ! نوار پیشرفت */
+#uploadProgress {{
+    margin-top: 1.5rem;
+}}
+#progressContainer {{
+    background-color: rgba(255,255,255,0.3); 
+    border-radius: 5px; 
+    height: 10px;
+    overflow: hidden;
+}}
+#progressBar {{
+    width: 0%; 
+    height: 100%; 
+    border-radius: 5px; 
+    background-color: #ffdf5d; 
+    transition: width 0.3s ease;
+}}
+
 button {{ display:block; width:100%; margin-top: 1.5rem; background:linear-gradient(90deg,#ffdf5d,#ffb84d); color:#000; border:none; border-radius:10px; padding:0.7rem; cursor:pointer; transition:all 0.3s ease; }}
 button:hover {{ background:linear-gradient(90deg,#ffd633,#ffa31a); transform:scale(1.05); }}
 </style>
@@ -491,16 +529,25 @@ button:hover {{ background:linear-gradient(90deg,#ffd633,#ffa31a); transform:sca
 </div>
 <p id="copyMessage">شماره کارت کپی شد!</p>
 <p>سپس، تصویر فیش واریزی خود را بارگذاری کنید.</p>
-<!-- فرم آپلود باید enctype="multipart/form-data" داشته باشد -->
-<form method="POST" action="/payment_upload" enctype="multipart/form-data">
+<!-- ! فرم با ID برای ارسال AJAX -->
+<form id="receiptForm" method="POST" action="/payment_upload" enctype="multipart/form-data">
     <label for="receipt">تصویر فیش واریزی:</label>
     <input type="file" id="receipt" name="receipt_file" accept="image/*" required>
-    <button type="submit">ثبت نهایی و ارسال فیش</button>
+    
+    <!-- ! نوار پیشرفت -->
+    <div id="uploadProgress" style="display:none; margin-top: 1rem;">
+        <p style="text-align: right; margin-bottom: 0.5rem; font-size: 0.9rem;">در حال ارسال فیش... <span id="progressPercent">0%</span></p>
+        <div id="progressContainer">
+            <div id="progressBar"></div>
+        </div>
+    </div>
+    <p id="errorMessage">خطا در ارسال فیش. لطفاً فایل دیگری را امتحان کنید.</p>
+
+    <button type="submit" id="submitButton">ثبت نهایی و ارسال فیش</button>
 </form>
 </div>
 <script>
 function copyCardNumber() {{
-    // FIX: این خط برای جلوگیری از خطای F-string پایتون به سینتکس صحیح پایتون تبدیل شد.
     const cardNumber = "{YOUR_CARD_NUMBER.replace('-', '')}"; 
     
     // اگر مرورگر از navigator.clipboard پشتیبانی نکرد، از document.execCommand استفاده کنید.
@@ -510,7 +557,7 @@ function copyCardNumber() {{
             msg.style.visibility = 'visible';
             setTimeout(() => {{ msg.style.visibility = 'hidden'; }}, 2000);
         }}, (err) => {{
-            console.error('خطا در کپی: ', err);
+            console.error('خطا در کپی (clipboard API): ', err);
             fallbackCopy(cardNumber);
         }});
     }} else {{
@@ -527,6 +574,7 @@ function fallbackCopy(text) {{
     textarea.focus();
     textarea.select();
     try {{
+        // استفاده از execCommand برای کپی
         document.execCommand('copy');
         const msg = document.getElementById('copyMessage');
         msg.innerText = 'شماره کارت کپی شد (فال‌بک)!';
@@ -538,6 +586,72 @@ function fallbackCopy(text) {{
     document.body.removeChild(textarea);
 }}
 
+
+// ! منطق ارسال AJAX برای نمایش نوار پیشرفت
+document.getElementById('receiptForm').addEventListener('submit', function(e) {{
+    e.preventDefault(); 
+    
+    const form = e.target;
+    const formData = new FormData(form);
+    const submitButton = document.getElementById('submitButton');
+    const uploadProgress = document.getElementById('uploadProgress');
+    const progressBar = document.getElementById('progressBar');
+    const progressPercent = document.getElementById('progressPercent');
+    const errorMessage = document.getElementById('errorMessage');
+
+    // مخفی کردن پیام خطا اگر قبلاً نمایش داده شده بود
+    errorMessage.style.display = 'none';
+
+    // غیرفعال کردن دکمه و نمایش نوار پیشرفت
+    submitButton.disabled = true;
+    submitButton.innerText = 'در حال ارسال... لطفا صبر کنید';
+    uploadProgress.style.display = 'block';
+
+    const xhr = new XMLHttpRequest();
+
+    // ردیابی پیشرفت آپلود
+    xhr.upload.onprogress = function(event) {{
+        if (event.lengthComputable) {{
+            const percentComplete = (event.loaded / event.total) * 100;
+            progressBar.style.width = percentComplete.toFixed(0) + '%';
+            progressPercent.innerText = percentComplete.toFixed(0) + '%';
+        }}
+    }};
+
+    // پاسخ نهایی
+    xhr.onload = function() {{
+        // پس از اتمام آپلود، نوار را کامل کن
+        progressBar.style.width = '100%';
+        
+        if (xhr.status === 200) {{
+            // فرض می‌کنیم در صورت موفقیت (کد 200)، Flask کار ثبت اطلاعات و ارسال تلگرام را انجام داده 
+            // و پاسخ 200 نشان دهنده موفقیت و نیاز به ریدایرکت است.
+            window.location.href = '/thanks'; 
+        }} else {{
+            // نمایش خطا در صورت عدم موفقیت
+            console.error('Upload failed with status:', xhr.status, xhr.responseText);
+            errorMessage.style.display = 'block';
+            
+            // بازگرداندن دکمه و پنهان کردن نوار پیشرفت
+            submitButton.disabled = false;
+            submitButton.innerText = 'ثبت نهایی و ارسال فیش';
+            uploadProgress.style.display = 'none';
+        }}
+    }};
+
+    // رسیدگی به خطاهای شبکه
+    xhr.onerror = function() {{
+        console.error('Network error during upload.');
+        errorMessage.style.display = 'block';
+
+        submitButton.disabled = false;
+        submitButton.innerText = 'ثبت نهایی و ارسال فیش';
+        uploadProgress.style.display = 'none';
+    }};
+
+    xhr.open('POST', form.action, true);
+    xhr.send(formData);
+}});
 </script>
 </body>
 </html>
@@ -703,25 +817,25 @@ a.receipt-link:hover {
 $(document).ready(() => {
     $('#adminTable').DataTable({
         language: {
-            "sEmptyTable":      "هیچ داده‌ای در جدول وجود ندارد",
-            "sInfo":            "نمایش _START_ تا _END_ از _TOTAL_ رکورد",
-            "sInfoEmpty":       "نمایش ۰ تا ۰ از ۰ رکورد",
-            "sInfoFiltered":    "(فیلتر شده از _MAX_ رکورد)",
-            "sInfoPostFix":     "",
-            "sInfoThousands":   ",",
-            "sLengthMenu":      "نمایش _MENU_ رکورد",
+            "sEmptyTable":      "هیچ داده‌ای در جدول وجود ندارد",
+            "sInfo":            "نمایش _START_ تا _END_ از _TOTAL_ رکورد",
+            "sInfoEmpty":       "نمایش ۰ تا ۰ از ۰ رکورد",
+            "sInfoFiltered":    "(فیلتر شده از _MAX_ رکورد)",
+            "sInfoPostFix":     "",
+            "sInfoThousands":   ",",
+            "sLengthMenu":      "نمایش _MENU_ رکورد",
             "sLoadingRecords": "در حال بارگزاری...",
-            "sProcessing":      "در حال پردازش...",
-            "sSearch":          "جستجو:",
-            "sZeroRecords":     "رکوردی با این مشخصات یافت نشد",
+            "sProcessing":      "در حال پردازش...",
+            "sSearch":          "جستجو:",
+            "sZeroRecords":     "رکوردی با این مشخصات یافت نشد",
             "oPaginate": {
-                "sFirst":    "ابتدا",
-                "sLast":     "انتها",
-                "sNext":     "بعدی",
+                "sFirst":    "ابتدا",
+                "sLast":     "انتها",
+                "sNext":     "بعدی",
                 "sPrevious": "قبلی"
             },
             "oAria": {
-                "sSortAscending":  ": فعال سازی مرتب سازی صعودی",
+                "sSortAscending":  ": فعال سازی مرتب سازی صعودی",
                 "sSortDescending": ": فعال سازی مرتب سازی نزولی"
             }
         },
@@ -847,53 +961,52 @@ def certificate():
 # --- ! روت جدید برای پرداخت و آپلود ---
 @app.route("/payment_upload", methods=["GET", "POST"])
 def payment_upload():
-    # اطمینان از اینکه کاربر از مرحله قبل آمده
     if session.get("step") != 2.5:
-        return redirect("/")
-
+        # اگر مرحله اشتباه است، کاربر را به شروع یا مرحله قبل هدایت کن
+        return redirect("/") 
+        
     if request.method == "POST":
-        # 1. بررسی فایل آپلود شده
+        # 1. مدیریت آپلود فایل
         if "receipt_file" not in request.files:
-            return "خطا: فایلی انتخاب نشده است.", 400
-        
-        file = request.files["receipt_file"]
-        
-        if file.filename == "":
-            return "خطا: نام فایل خالی است.", 400
+            return "فایل فیش وجود ندارد", 400
 
-        if file:
-            # 2. دریافت اطلاعات کاربر از سشن
-            data = session.get("form_data", {})
-            data["certificate"] = session.get("certificate_choice")
-            
-            # 3. ساخت نام فایل امن و یکتا
-            # استفاده از کد ملی و شماره دانشجویی برای یکتا سازی نام فایل
-            national_code = data.get("national_code", "NA")
-            student_num = data.get("student_number", "NA")
-            # استفاده از secure_filename برای امنیت
-            safe_filename = secure_filename(file.filename)
-            filename = f"{national_code}_{student_num}_{safe_filename}"
-            filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-            
-            # 4. ذخیره فایل در سرور
+        receipt_file = request.files["receipt_file"]
+        if receipt_file.filename == "":
+            return "نام فایل فیش خالی است", 400
+
+        # اگر فایل وجود داشت، آن را ذخیره کن
+        if receipt_file:
+            # ایجاد یک نام فایل امن و یونیک (اگرچه secure_filename کافیست، اما برای جلوگیری از تکرار، می‌توان UUID هم اضافه کرد)
+            filename = secure_filename(receipt_file.filename)
+            # برای جلوگیری از تداخل، از یک پیشوند زمان‌دار یا یونیک استفاده می‌کنیم
+            import time
+            unique_filename = f"{int(time.time())}_{filename}"
+            receipt_filepath = os.path.join(
+                app.config["UPLOAD_FOLDER"], unique_filename
+            )
             try:
-                file.save(filepath)
+                receipt_file.save(receipt_filepath)
+                
+                # 2. به‌روزرسانی داده‌ها و ذخیره در CSV
+                data = session.get("form_data", {})
+                data["receipt_file"] = unique_filename
+                
+                # 3. ذخیره نهایی
+                save_to_csv(data)
+                
+                # 4. ارسال به تلگرام (با فیش)
+                send_to_telegram(data, receipt_filepath)
+                
+                # 5. پاکسازی و ریدایرکت نهایی (در حالت AJAX، جاوا اسکریپت ریدایرکت را هندل می‌کند)
+                session["step"] = 3
+                return "ثبت نام موفق", 200 # پاسخ موفق 200 برای AJAX
+            
             except Exception as e:
-                print(f"خطا در ذخیره فایل: {e}")
-                return f"خطا در ذخیره فایل: {e}", 500
-            
-            # 5. ذخیره نام فایل در دیتابیس (CSV)
-            data["receipt_file"] = filename
-            save_to_csv(data)
-            
-            # 6. ارسال به تلگرام همراه با فایل
-            send_to_telegram(data, receipt_filepath=filepath)
-            
-            # 7. انتقال به صفحه تشکر
-            session["step"] = 3
-            return redirect("/thanks")
+                print(f"خطا در ذخیره فایل یا پردازش: {e}")
+                return "خطا در پردازش فایل یا اطلاعات", 500
 
-    # متد GET: نمایش صفحه آپلود
+    # نمایش صفحه پرداخت و آپلود در متد GET
+    # ! به روز رسانی شده برای استفاده از f-string و متغیرهای تنظیم شده
     return render_template_string(payment_upload_html)
 
 
@@ -901,146 +1014,159 @@ def payment_upload():
 def thanks():
     if session.get("step") != 3:
         return redirect("/")
-    session.clear()
+    
+    # حذف سشن پس از اتمام
+    session.clear() 
     return render_template_string(thanks_html)
 
 
-# --- ! روت جدید برای دسترسی ادمین به فایل‌های آپلود شده ---
-@app.route("/uploads/<path:filename>")
-@requires_auth  # ! مهم: فقط ادمین به فیش‌ها دسترسی دارد
-def uploaded_file(filename):
-    try:
-        return send_from_directory(
-            app.config["UPLOAD_FOLDER"], filename, as_attachment=False # False یعنی در مرورگر نشان بده
-        )
-    except FileNotFoundError:
-        return "فایل یافت نشد.", 404
-    except Exception as e:
-        print(f"خطا در ارسال فایل: {e}")
-        return "خطا در دسترسی به فایل.", 500
-
-
-@app.route("/download_csv")
-@requires_auth
-def download_csv():
-    if not os.path.exists(CSV_FILE):
-        return "فایل ثبت نام هنوز ایجاد نشده است.", 404
-    return send_file(CSV_FILE, as_attachment=True, download_name="registrations.csv")
-
-
-@app.route("/download_csv_filtered")
-@requires_auth
-def download_csv_filtered():
-    filter_value = request.args.get('certificate')
-    if not filter_value:
-        return redirect("/download_csv") # اگر فیلتر نبود، کل فایل را بفرست
-
-    if not os.path.exists(CSV_FILE):
-        return "فایل ثبت نام هنوز ایجاد نشده است.", 404
-
-    # 1. خواندن کل داده‌ها
-    rows = []
-    with open(CSV_FILE, "r", newline="", encoding="utf-8-sig") as f:
-        rows = list(csv.DictReader(f))
-
-    # 2. اعمال فیلتر
-    filtered_rows = [row for row in rows if row.get("گواهی") == filter_value]
-
-    # 3. نوشتن فایل موقت فیلتر شده
-    temp_filename = f"filtered_{secure_filename(filter_value)}.csv"
-    temp_filepath = os.path.join(app.config["UPLOAD_FOLDER"], temp_filename)
-    
-    try:
-        with open(temp_filepath, "w", newline="", encoding="utf-8-sig") as f:
-            writer = csv.DictWriter(f, fieldnames=PERSIAN_HEADERS)
-            writer.writeheader()
-            writer.writerows(filtered_rows)
-
-        # 4. ارسال فایل موقت
-        return send_file(temp_filepath, as_attachment=True, download_name=temp_filename)
-    except Exception as e:
-        print(f"خطا در فیلتر و ارسال CSV: {e}")
-        return "خطا در فیلتر کردن فایل.", 500
-
+# --- ادمین پنل و توابع مدیریتی ---
 
 @app.route("/admin_pannel")
 @requires_auth
 def admin_pannel():
-    headers = PERSIAN_HEADERS
-    rows = []
-    if os.path.exists(CSV_FILE):
-        with open(CSV_FILE, "r", newline="", encoding="utf-8-sig") as f:
-            rows = list(csv.DictReader(f))
-    return render_template_string(admin_html, headers=headers, rows=rows)
+    # خواندن داده‌ها
+    if not os.path.exists(CSV_FILE):
+        return render_template_string(admin_html, headers=PERSIAN_HEADERS, rows=[])
+        
+    with open(CSV_FILE, "r", encoding="utf-8-sig") as f:
+        rows = list(csv.DictReader(f))
+    
+    return render_template_string(admin_html, headers=PERSIAN_HEADERS, rows=rows)
 
-
-@app.route("/admin_delete/<int:idx>")
+# ! روت جدید برای نمایش فایل‌های آپلودی (فیش‌ها)
+@app.route("/uploads/<filename>")
 @requires_auth
-def admin_delete(idx):
-    rows = []
-    if os.path.exists(CSV_FILE):
-        with open(CSV_FILE, "r", encoding="utf-8-sig") as f:
-            rows = list(csv.DictReader(f))
-            
-        if 0 <= idx < len(rows):
-            # ! قبل از حذف ردیف، فایل آپلود شده را هم حذف کنید
-            row_to_delete = rows[idx]
-            filename = row_to_delete.get("فیش واریزی")
-            if filename:
-                filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-                if os.path.exists(filepath):
-                    try:
-                        os.remove(filepath)
-                        print(f"فایل {filename} حذف شد.")
-                    except Exception as e:
-                        print(f"خطا در حذف فایل {filename}: {e}")
+def uploaded_file(filename):
+    return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
 
-            # حذف ردیف از لیست
-            rows.pop(idx)
-            
-            # بازنویسی فایل CSV
-            with open(CSV_FILE, "w", newline="", encoding="utf-8-sig") as f:
-                writer = csv.DictWriter(f, fieldnames=PERSIAN_HEADERS)
-                writer.writeheader()
-                writer.writerows(rows)
-                
-    return redirect("/admin_pannel")
+# ! تابع کمکی برای خواندن و نوشتن مجدد CSV پس از عملیات حذف/ویرایش
+def update_csv(rows):
+    """بازنویسی کل فایل CSV با ردیف‌های جدید"""
+    if not rows:
+        if os.path.exists(CSV_FILE):
+             os.remove(CSV_FILE)
+        return
 
+    with open(CSV_FILE, "w", newline="", encoding="utf-8-sig") as f:
+        writer = csv.DictWriter(f, fieldnames=PERSIAN_HEADERS)
+        writer.writeheader()
+        writer.writerows(rows)
 
-@app.route("/admin_edit/<int:idx>", methods=["GET", "POST"])
+@app.route("/admin_delete/<int:index>")
 @requires_auth
-def admin_edit(idx):
-    """روت برای ویرایش یک رکورد خاص توسط ادمین"""
-    rows = []
+def admin_delete(index):
     if not os.path.exists(CSV_FILE):
         return redirect("/admin_pannel")
 
     with open(CSV_FILE, "r", encoding="utf-8-sig") as f:
         rows = list(csv.DictReader(f))
-    
-    if not (0 <= idx < len(rows)):
-        return "ایندکس نامعتبر است", 404
 
-    # --- متد POST: ذخیره تغییرات ---
-    if request.method == "POST":
-        for key in PERSIAN_HEADERS:
-            # فیلد فیش واریزی قابل ویرایش نیست، فقط نمایش داده می‌شود
-            if key != "فیش واریزی":
-                # ! خط ناقص در اینجا کامل شد
-                rows[idx][key] = request.form.get(key) 
+    if 0 <= index < len(rows):
+        # حذف فایل فیش اگر وجود داشته باشد
+        receipt_filename = rows[index].get("فیش واریزی")
+        if receipt_filename:
+            receipt_filepath = os.path.join(app.config["UPLOAD_FOLDER"], receipt_filename)
+            if os.path.exists(receipt_filepath):
+                os.remove(receipt_filepath)
         
-        # ذخیره تغییرات در CSV
-        with open(CSV_FILE, "w", newline="", encoding="utf-8-sig") as f:
-            writer = csv.DictWriter(f, fieldnames=PERSIAN_HEADERS)
-            writer.writeheader()
-            writer.writerows(rows)
-            
-        # ریدایرکت به پنل ادمین
+        del rows[index]
+        update_csv(rows)
+    
+    return redirect("/admin_pannel")
+
+@app.route("/admin_edit/<int:index>", methods=["GET", "POST"])
+@requires_auth
+def admin_edit(index):
+    if not os.path.exists(CSV_FILE):
         return redirect("/admin_pannel")
 
-    # --- متد GET: نمایش فرم ویرایش ---
-    row_data = rows[idx]
-    # رندر کردن قالب ویرایش با داده‌های فعلی رکورد
-    return render_template_string(admin_edit_html, row=row_data, headers=PERSIAN_HEADERS, index=idx)
+    with open(CSV_FILE, "r", encoding="utf-8-sig") as f:
+        rows = list(csv.DictReader(f))
 
-# ! بلوک if __name__ == '__main__': برای دیپلوی در Render حذف شده است (طبق توصیه بهینه‌سازی)
+    if not (0 <= index < len(rows)):
+        return redirect("/admin_pannel")
+
+    row_to_edit = rows[index]
+
+    if request.method == "POST":
+        # به‌روزرسانی داده‌های رکورد از فرم POST
+        for header in PERSIAN_HEADERS:
+            # فیش واریزی به صورت متنی در فرم ویرایش، قابل تغییر نیست
+            if header != "فیش واریزی":
+                # از request.form.get(header) استفاده می‌کنیم
+                new_value = request.form.get(header)
+                if new_value is not None:
+                    row_to_edit[header] = new_value
+        
+        # ذخیره مجدد کل CSV
+        update_csv(rows)
+        return redirect("/admin_pannel")
+
+    return render_template_string(admin_edit_html, row=row_to_edit, index=index, headers=PERSIAN_HEADERS)
+
+@app.route("/download_csv")
+@requires_auth
+def download_csv():
+    if not os.path.exists(CSV_FILE):
+        return "فایل CSV پیدا نشد.", 404
+    
+    # تنظیم هدرها برای دانلود
+    return send_file(
+        CSV_FILE,
+        mimetype="text/csv",
+        as_attachment=True,
+        download_name="registrations_all.csv",
+    )
+
+@app.route("/download_csv_filtered")
+@requires_auth
+def download_csv_filtered():
+    if not os.path.exists(CSV_FILE):
+        return "فایل CSV پیدا نشد.", 404
+    
+    # پارامتر فیلتر (مثلاً certificate)
+    filter_key = request.args.keys()
+    if not filter_key:
+        return redirect("/download_csv")
+
+    filter_key = list(filter_key)[0] # اولین پارامتر
+    filter_value = request.args.get(filter_key)
+
+    with open(CSV_FILE, "r", encoding="utf-8-sig") as f:
+        all_rows = list(csv.DictReader(f))
+    
+    # فیلتر کردن
+    filtered_rows = [row for row in all_rows if row.get(filter_key) == filter_value]
+
+    # ایجاد یک فایل موقت برای دانلود فیلتر شده
+    import io
+    temp_output = io.StringIO()
+    writer = csv.DictWriter(temp_output, fieldnames=PERSIAN_HEADERS)
+    writer.writeheader()
+    writer.writerows(filtered_rows)
+    temp_output.seek(0)
+
+    # تعیین نام فایل بر اساس فیلتر
+    download_name = f"registrations_filtered_{filter_key}.csv"
+    if filter_value:
+        # برای حذف ( و ) و تبدیل به نام فایل مناسب
+        safe_value = filter_value.replace('(', '').replace(')', '').replace(' ', '_')
+        download_name = f"registrations_{safe_value}.csv"
+
+    # تنظیم هدرها برای دانلود
+    return Response(
+        temp_output.getvalue().encode('utf-8-sig'),
+        mimetype="text/csv",
+        headers={
+            "Content-Disposition": f"attachment;filename={download_name.replace(' ', '_')}",
+            "Content-type": "text/csv; charset=utf-8-sig"
+        }
+    )
+
+if __name__ == "__main__":
+    # ! تنظیمات Vazir Font برای نمایش بهتر فونت فارسی (فقط برای حالت اجرای لوکال)
+    # ! در محیط Canvas، فونت Vazir باید قبلا تنظیم شده باشد.
+    
+    # این خط را برای تست لوکال برگردانید: app.run(debug=True)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
