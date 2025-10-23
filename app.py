@@ -2,6 +2,7 @@ from flask import Flask, render_template_string, request, redirect, send_file, s
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from functools import wraps
 import csv, os, requests  # اضافه شده برای تلگرام
+import json
 
 app = Flask(__name__)
 # برای استفاده از session، حتماً یک کلید امن و مخفی در محیط واقعی تنظیم کنید
@@ -93,6 +94,48 @@ def send_admin_list(chat_id):
 
     keyboard = InlineKeyboardMarkup(buttons)
     bot.send_message(chat_id=chat_id, text="📋 لیست ثبت‌نامی‌ها:", reply_markup=keyboard)
+ def send_admin_list_with_keyboard(chat_id):
+    if not os.path.exists(CSV_FILE):
+        return
+    with open(CSV_FILE,'r',encoding='utf-8-sig') as f:
+        rows = list(csv.DictReader(f))
+    
+    for idx, r in enumerate(rows):
+        text = f"نام: {r['نام']} {r['نام خانوادگی']}\n"
+        text += f"دانشگاه: {r['نام دانشگاه']}\nرشته: {r['رشتهٔ تحصیلی']}\nگواهی: {r['گواهی']}"
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("مشاهده جزئیات", callback_data=f"view_{idx}"),
+             InlineKeyboardButton("ویرایش", callback_data=f"edit_{idx}")]
+        ])
+        url = f"https://api.telegram.org/bot{os.environ.get('TELEGRAM_BOT_TOKEN')}/sendMessage"
+        requests.post(url, data={
+            "chat_id": chat_id,
+            "text": text,
+            "reply_markup": json.dumps(keyboard)
+        })
+ def handle_callback_query(data, chat_id):
+    # data مثل: view_0 یا edit_3
+    if not os.path.exists(CSV_FILE):
+        return
+    with open(CSV_FILE,'r',encoding='utf-8-sig') as f:
+        rows = list(csv.DictReader(f))
+
+    action, idx_str = data.split('_')
+    idx = int(idx_str)
+    if idx >= len(rows):
+        return
+
+    if action == "view":
+        r = rows[idx]
+        text = "\n".join([f"{h}: {r[h]}" for h in PERSIAN_HEADERS])
+    elif action == "edit":
+        r = rows[idx]
+        text = f"برای ویرایش این رکورد لطفاً به پنل وب مراجعه کنید:\n{r['نام']} {r['نام خانوادگی']}"
+    else:
+        return
+
+    url = f"https://api.telegram.org/bot{os.environ.get('TELEGRAM_BOT_TOKEN')}/sendMessage"
+    requests.post(url, data={"chat_id": chat_id, "text": text})
 
 def handle_callback(update, context):
     query = update.callback_query
