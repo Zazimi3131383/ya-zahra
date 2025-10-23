@@ -324,17 +324,22 @@ def start_form():
     session.clear()
     session["step"] = "form"  # مرحله اول شروع شد
     return redirect("/form")
+    
+@app.route("/form", methods=["GET", "POST"])
+def form_page():
+    """فرم ثبت نام"""
+    # جلوگیری از ورود مستقیم (فقط اگر از start_form آمده باشد)
+    if session.get("step") != "form":
+        return redirect("/")
 
-# اگر کاربر بدون اجازه از مرحله قبل نیامده، برگرد به اول
-if session.get("step") != "form":
-    return redirect("/")
+    if request.method == "POST":
+        # ذخیره اطلاعات فرم در سشن
+        session["reg_data"] = request.form.to_dict()
+        session["step"] = "certificate"  # اجازه مرحله بعد
+        return redirect("/certificate")
 
-if request.method == "POST":
-    session["reg_data"] = request.form.to_dict()
-    session["step"] = "certificate"  # اجازه مرحله بعد
-    return redirect("/certificate")
+    return render_template_string(form_html)
 
-return render_template_string(form_html)
 
 @app.route("/certificate", methods=["GET", "POST"])
 def certificate_choice():
