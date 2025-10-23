@@ -118,8 +118,8 @@ def handle_callback_query(data, chat_id):
     if not os.path.exists(CSV_FILE):
         return
     if data == "report":
-    with open(CSV_FILE,'r',encoding='utf-8-sig') as f:
-        rows = list(csv.DictReader(f))
+        with open(CSV_FILE,'r',encoding='utf-8-sig') as f:
+            rows = list(csv.DictReader(f))
     total = len(rows)
     certified = sum(1 for r in rows if r['گواهی'].startswith("خواهان گواهی"))
     free = total - certified
@@ -520,6 +520,7 @@ def download_csv_filtered():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
 
 
