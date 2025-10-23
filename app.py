@@ -287,8 +287,8 @@ button:hover { background:linear-gradient(90deg,#ffd633,#ffa31a); transform:scal
 <h1>درخواست گواهی</h1>
 <form method="POST" action="/certificate">
   <div>
-    <input type="radio" name="certificate" value="خواهان گواهی هستم" id="certYes" required>
-    <label for="certYes">خواهان گواهی هستم</label>
+    <input type="radio" name="certificate" value="خواهان گواهی هستم (50 هزار تومان)" id="certYes" required>
+    <label for="certYes">خواهان گواهی هستم(50 هزار تومان)</label>
   </div>
   <div>
     <input type="radio" name="certificate" value="خواهان گواهی نیستم (رایگان)" id="certNo" required>
@@ -520,6 +520,7 @@ def download_csv_filtered():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
 
 
