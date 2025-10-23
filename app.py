@@ -128,7 +128,7 @@ def send_to_telegram(data, receipt_filepath=None):
         return
 
     # ساخت پیام زیبا با emoji و قالب خوانا
-    message = "🎉 **ثبت‌نام جدید کارگاه** 🎉\n\n"
+    message = "🎉 **ثبت‌نام جدید کارگاه مقاله نویسی** 🎉\n\n"
     message += (
         f"👤 نام و نام خانوادگی: {data.get('first_name','')} {data.get('last_name','')}\n"
     )
@@ -553,7 +553,7 @@ rules_html = """
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>ثبت‌نام کارگاه</title>
+<title>ثبت‌نام کارگاه مقاله نویسی</title>
 <style>
 body { margin: 0; font-family: 'Vazir', sans-serif; background: linear-gradient(135deg,#1e3c72,#2a5298); color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
 .card { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius: 20px; padding: 2rem; max-width: 480px; width: 90%; box-shadow: 0 8px 20px rgba(0,0,0,0.2); transition: transform 0.3s ease, box-shadow 0.3s ease; }
@@ -599,7 +599,7 @@ button:hover { background:linear-gradient(90deg,#ffd633,#ffa31a); transform:scal
 </head>
 <body>
 <div class="card">
-<h1>فرم ثبت نام کارگاه</h1>
+<h1>فرم ثبت نام کارگاه مقاله نویسی</h1>
 <form method="POST" action="/form">
   <label>نام:</label><input type="text" name="first_name" required>
   <label>نام خانوادگی:</label><input type="text" name="last_name" required>
@@ -906,7 +906,7 @@ a.btn:hover { background:linear-gradient(90deg,#ffd633,#ffa31a); transform:scale
 <div class="card">
 <h1>ثبت‌نام شما با موفقیت انجام شد!</h1>
 <p>لطفاً کانال زیر را دنبال کنید:</p>
-<a href="https://t.me/article_workshop1" class="btn" target="_blank">کانال تلگرام کارگاه</a>
+<a href="https://t.me/article_workshop1" class="btn" target="_blank">کانال تلگرام کارگاه مقاله نویسی</a>
 </div>
 </body>
 </html>
@@ -1147,3 +1147,4 @@ if __name__ == "__main__":
     # در محیط تولید (Production)، بهتر است از طریق gunicorn یا مشابه آن اجرا شود.
     # در محیط توسعه، این خط اجرا می‌شود:
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+
