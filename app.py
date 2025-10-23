@@ -32,9 +32,9 @@ app = Flask(__name__)
 
 # ! --- بارگذاری متغیرهای محیطی حساس از ENV ---
 # اگر متغیر محیطی تنظیم نشده باشد، از مقداری که کاربر در درخواست فرستاده بود استفاده می‌شود (فقط برای تست).
-SECRET_KEY = os.environ.get("SECRET_KEY", "z.azimi3131383")
-TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "8335443868:AAFT4xn8my5XBeFP3rlpyrqCMym-NDBr2WQ")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "198600159")
+SECRET_KEY = os.environ.get("SECRET_KEY")
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
 # تنظیم کلید مخفی Flask
 app.secret_key = SECRET_KEY
@@ -1147,4 +1147,5 @@ if __name__ == "__main__":
     # در محیط تولید (Production)، بهتر است از طریق gunicorn یا مشابه آن اجرا شود.
     # در محیط توسعه، این خط اجرا می‌شود:
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+
 
