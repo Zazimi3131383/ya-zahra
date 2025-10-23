@@ -330,6 +330,11 @@ def register_form():
         # ذخیره موقت اطلاعات در سشن
         session["reg_data"] = request.form.to_dict()
         return redirect("/certificate")
+    
+    # ⚠️ تغییر جدید: اگر متد GET بود (رفرش یا دسترسی مستقیم)، به صفحه اول برگردد.
+    if request.method == "GET":
+        return redirect("/")
+
     return render_template_string(form_html)
 
 @app.route("/certificate", methods=["GET", "POST"])
@@ -1162,6 +1167,7 @@ if __name__ == "__main__":
     # در محیط تولید (Production)، بهتر است از طریق gunicorn یا مشابه آن اجرا شود.
     # در محیط توسعه، این خط اجرا می‌شود:
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+
 
 
 
