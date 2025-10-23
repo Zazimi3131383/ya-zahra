@@ -61,8 +61,8 @@ ADMIN_USER = "admin"
 ADMIN_PASS = SECRET_KEY 
 
 # اطلاعات کارت را از محیط بخوانید
-YOUR_CARD_NAME = os.environ.get("YOUR_CARD_NAME", "زهرا پرتوی زیناب")
-RAW_CARD_NUMBER = os.environ.get("YOUR_CARD_NUMBER", "62861872975239")
+YOUR_CARD_NAME = os.environ.get("YOUR_CARD_NAME")
+RAW_CARD_NUMBER = os.environ.get("YOUR_CARD_NUMBER")
 
 # فرمت کردن شماره کارت (62861872975239 -> 6286-1872-9752-39)
 YOUR_CARD_NUMBER_DISPLAY = "-".join([RAW_CARD_NUMBER[i:i+4] for i in range(0, len(RAW_CARD_NUMBER), 4)])
@@ -1147,5 +1147,6 @@ if __name__ == "__main__":
     # در محیط تولید (Production)، بهتر است از طریق gunicorn یا مشابه آن اجرا شود.
     # در محیط توسعه، این خط اجرا می‌شود:
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+
 
 
