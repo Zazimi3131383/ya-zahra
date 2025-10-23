@@ -335,17 +335,14 @@ def register_form():
 @app.route("/certificate", methods=["GET", "POST"])
 def certificate_choice():
     """انتخاب گزینه گواهی و هدایت به مرحله بعد"""
-    # ⚠️ بررسی امنیتی برای جلوگیری از دسترسی مستقیم/رفرش
+    
+    # بررسی ۱: اگر اطلاعات مرحله قبل موجود نیست (دسترسی مستقیم یا سشن پاک شده)
     if not session.get("reg_data"):
-        return redirect("/")
+        return redirect("/") 
 
     if request.method == "POST":
         choice = request.form.get("certificate")
         
-        # از آنجایی که در ابتدای تابع بررسی کردیم، این بررسی دیگر ضروری نیست
-        # if not session.get("reg_data"):
-        #     return redirect("/") 
-
         session["reg_data"]["certificate"] = choice
         
         # اگر خواهان گواهی بود، به صفحه پرداخت/آپلود هدایت شود
@@ -357,13 +354,20 @@ def certificate_choice():
             save_to_csv(final_data)
             send_to_telegram(final_data)
             return redirect("/thanks")
+    
+    # ⚠️ بررسی ۲ (جدید برای رفع مشکل رفرش): اگر متد GET بود (رفرش)
+    # حتی اگر داده در سشن موجود بود، آن را پاک کرده و به صفحه اول برمی‌گردانیم.
+    if request.method == "GET":
+        session.pop("reg_data", None) # پاک کردن داده‌های موقت فرم
+        return redirect("/")
 
     return render_template_string(certificate_html)
 
 @app.route("/payment_upload", methods=["GET", "POST"])
 def payment_upload():
     """صفحه نمایش شماره کارت و آپلود فیش واریزی"""
-    # ⚠️ بررسی امنیتی برای جلوگیری از دسترسی مستقیم/رفرش
+    
+    # بررسی ۱: اگر اطلاعات مرحله قبل موجود نیست
     if not session.get("reg_data"):
         return redirect("/")
 
@@ -393,7 +397,6 @@ def payment_upload():
                 file.save(filepath)
                 
                 # ثبت نهایی در CSV و ارسال به تلگرام
-                # ! از آنجایی که در ابتدای تابع چک کردیم، نیاز به چک مجدد نیست، اما اگر POST موفق نبود، session باید سالم بماند
                 final_data = session.pop("reg_data")
                 final_data["receipt_file"] = unique_filename # ذخیره نام فایل در CSV
                 
@@ -407,7 +410,12 @@ def payment_upload():
                 print(f"خطا در آپلود فایل یا ذخیره: {e}")
                 return Response(f"خطای داخلی سرور: {e}", status=500)
 
-    # نمایش صفحه در متد GET
+    # ⚠️ بررسی ۲ (جدید برای رفع مشکل رفرش): اگر متد GET بود (رفرش)
+    if request.method == "GET":
+        session.pop("reg_data", None) # پاک کردن داده‌های موقت فرم
+        return redirect("/")
+
+    # نمایش صفحه در متد GET (که با منطق بالا unreachable شده، اما برای اطمینان باقی می‌ماند)
     return render_template_string(payment_upload_html)
 
 @app.route("/thanks", methods=["GET"])
@@ -1154,6 +1162,7 @@ if __name__ == "__main__":
     # در محیط تولید (Production)، بهتر است از طریق gunicorn یا مشابه آن اجرا شود.
     # در محیط توسعه، این خط اجرا می‌شود:
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+
 
 
 
