@@ -349,7 +349,6 @@ a.btn:hover { background: linear-gradient(90deg,#ffd633,#ffa31a); transform:scal
 <div class="card">
 <h3>پنل مدیریت</h3>
 <a href="/download_csv" class="btn">دانلود CSV</a>
-<a href="/download_csv_filtered?certificate=خواهان گواهی هستم" class="btn btn-info">دانلود CSV گواهی</a>
 <div class="table-responsive">
 <table id="adminTable" class="table table-bordered table-striped">
 <thead>
@@ -510,6 +509,7 @@ def download_csv_filtered():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
 
 
