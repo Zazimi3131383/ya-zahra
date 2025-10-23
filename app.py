@@ -306,10 +306,30 @@ a.btn:hover { background: linear-gradient(90deg,#ffd633,#ffa31a); transform:scal
 <div class="card">
 <h3>پنل مدیریت</h3>
 <a href="/download_csv" class="btn">دانلود CSV</a>
+<a href="/download_csv_filtered?certificate=خواهان گواهی هستم" class="btn btn-info">دانلود CSV گواهی</a>
 <div class="table-responsive">
 <table id="adminTable" class="table table-bordered table-striped">
-<thead><tr>{% for h in headers %}<th>{{h}}</th>{% endfor %}</tr></thead>
-<tbody>{% for r in rows %}<tr>{% for h in headers %}<td>{{r[h]}}</td>{% endfor %}</tr>{% endfor %}</tbody>
+<thead>
+<tr>
+{% for h in headers %}
+<th>{{h}}</th>
+{% endfor %}
+<th>اقدامات</th>
+</tr>
+</thead>
+<tbody>
+{% for r in rows %}
+<tr>
+  {% for h in headers %}
+  <td>{{r[h]}}</td>
+  {% endfor %}
+  <td>
+    <a href="/admin_delete/{{loop.index0}}" class="btn btn-danger btn-sm">حذف</a>
+    <a href="/admin_edit/{{loop.index0}}" class="btn btn-warning btn-sm">ویرایش</a>
+  </td>
+</tr>
+{% endfor %}
+</tbody>
 </table>
 </div>
 </div>
@@ -383,13 +403,70 @@ def admin_pannel():
             rows = list(csv.DictReader(f))
     return render_template_string(admin_html, headers=headers, rows=rows)
 
+@app.route("/admin_delete/<int:idx>")
+@requires_auth
+def admin_delete(idx):
+    if os.path.exists(CSV_FILE):
+        with open(CSV_FILE,'r',encoding='utf-8-sig') as f:
+            rows = list(csv.DictReader(f))
+        if 0 <= idx < len(rows):
+            rows.pop(idx)
+        with open(CSV_FILE,'w',newline='',encoding='utf-8-sig') as f:
+            writer = csv.DictWriter(f, fieldnames=PERSIAN_HEADERS)
+            writer.writeheader()
+            writer.writerows(rows)
+    return redirect("/admin_pannel")
+
+@app.route("/admin_edit/<int:idx>", methods=['GET','POST'])
+@requires_auth
+def admin_edit(idx):
+    rows=[]
+    if os.path.exists(CSV_FILE):
+        with open(CSV_FILE,'r',encoding='utf-8-sig') as f:
+            rows = list(csv.DictReader(f))
+    if request.method=='POST':
+        for i,key in enumerate(PERSIAN_HEADERS):
+            rows[idx][key] = request.form.get(key,'')
+        with open(CSV_FILE,'w',newline='',encoding='utf-8-sig') as f:
+            writer = csv.DictWriter(f, fieldnames=PERSIAN_HEADERS)
+            writer.writeheader()
+            writer.writerows(rows)
+        return redirect("/admin_pannel")
+    # نمایش فرم ویرایش
+    form_html_edit = "<form method='POST'>"
+    for key in PERSIAN_HEADERS:
+        form_html_edit += f"<label>{key}</label><input name='{key}' value='{rows[idx][key]}'><br>"
+    form_html_edit += "<button type='submit'>ذخیره</button></form>"
+    return form_html_edit
+
 @app.route("/download_csv")
 @requires_auth
 def download_csv():
     return send_file(CSV_FILE, as_attachment=True)
 
+@app.route("/download_csv_filtered")
+@requires_auth
+def download_csv_filtered():
+    filter_cert = request.args.get("certificate","")
+    rows=[]
+    if os.path.exists(CSV_FILE):
+        with open(CSV_FILE,'r',encoding='utf-8-sig') as f:
+            all_rows = list(csv.DictReader(f))
+        if filter_cert:
+            rows = [r for r in all_rows if r["گواهی"]==filter_cert]
+        else:
+            rows = all_rows
+    # ایجاد CSV موقت
+    tmp_file = "filtered.csv"
+    with open(tmp_file,'w',newline='',encoding='utf-8-sig') as f:
+        writer = csv.DictWriter(f, fieldnames=PERSIAN_HEADERS)
+        writer.writeheader()
+        writer.writerows(rows)
+    return send_file(tmp_file, as_attachment=True)
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
 
