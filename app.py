@@ -335,10 +335,16 @@ def register_form():
 @app.route("/certificate", methods=["GET", "POST"])
 def certificate_choice():
     """انتخاب گزینه گواهی و هدایت به مرحله بعد"""
+    # ⚠️ بررسی امنیتی برای جلوگیری از دسترسی مستقیم/رفرش
+    if not session.get("reg_data"):
+        return redirect("/")
+
     if request.method == "POST":
         choice = request.form.get("certificate")
-        if not session.get("reg_data"):
-            return redirect("/") # اگر اطلاعات قبلی وجود نداشت
+        
+        # از آنجایی که در ابتدای تابع بررسی کردیم، این بررسی دیگر ضروری نیست
+        # if not session.get("reg_data"):
+        #     return redirect("/") 
 
         session["reg_data"]["certificate"] = choice
         
@@ -354,10 +360,13 @@ def certificate_choice():
 
     return render_template_string(certificate_html)
 
-
 @app.route("/payment_upload", methods=["GET", "POST"])
 def payment_upload():
     """صفحه نمایش شماره کارت و آپلود فیش واریزی"""
+    # ⚠️ بررسی امنیتی برای جلوگیری از دسترسی مستقیم/رفرش
+    if not session.get("reg_data"):
+        return redirect("/")
+
     if request.method == "POST":
         # بررسی وجود فایل
         if "receipt_file" not in request.files:
@@ -384,9 +393,7 @@ def payment_upload():
                 file.save(filepath)
                 
                 # ثبت نهایی در CSV و ارسال به تلگرام
-                if not session.get("reg_data"):
-                    return redirect("/") # اطلاعات سشن از دست رفته است
-                    
+                # ! از آنجایی که در ابتدای تابع چک کردیم، نیاز به چک مجدد نیست، اما اگر POST موفق نبود، session باید سالم بماند
                 final_data = session.pop("reg_data")
                 final_data["receipt_file"] = unique_filename # ذخیره نام فایل در CSV
                 
@@ -1147,6 +1154,7 @@ if __name__ == "__main__":
     # در محیط تولید (Production)، بهتر است از طریق gunicorn یا مشابه آن اجرا شود.
     # در محیط توسعه، این خط اجرا می‌شود:
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+
 
 
 
