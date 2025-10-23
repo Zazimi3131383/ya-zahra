@@ -1,4 +1,5 @@
 from flask import Flask, render_template_string, request, redirect, send_file, session, Response
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from functools import wraps
 import csv, os, requests  # اضافه شده برای تلگرام
 
@@ -62,7 +63,50 @@ def send_to_telegram(data):
         print("پیام به تلگرام با موفقیت ارسال شد ✅")
     else:
         print("ارسال پیام به تلگرام موفق نبود ❌:", resp.text)
-        
+
+def send_admin_list(chat_id):
+    """
+    ارسال دکمه کیبورد برای دیدن لیست ثبت‌نام‌ها
+    """
+    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    if not bot_token:
+        return
+
+    bot = Bot(token=bot_token)
+
+    # خواندن داده‌ها از CSV
+    rows = []
+    if os.path.exists(CSV_FILE):
+        with open(CSV_FILE, 'r', newline='', encoding='utf-8-sig') as f:
+            rows = list(csv.DictReader(f))
+
+    # اگر لیست خالی بود
+    if not rows:
+        bot.send_message(chat_id=chat_id, text="🚫 هنوز ثبت‌نامی وجود ندارد.")
+        return
+
+    # دکمه‌ها: هر ثبت‌نام یک دکمه
+    buttons = []
+    for idx, row in enumerate(rows):
+        text = f"{row.get('نام','')} {row.get('نام خانوادگی','')}"
+        buttons.append([InlineKeyboardButton(text=text, callback_data=str(idx))])
+
+    keyboard = InlineKeyboardMarkup(buttons)
+    bot.send_message(chat_id=chat_id, text="📋 لیست ثبت‌نامی‌ها:", reply_markup=keyboard)
+
+def handle_callback(update, context):
+    query = update.callback_query
+    idx = int(query.data)
+    with open(CSV_FILE, 'r', newline='', encoding='utf-8-sig') as f:
+        rows = list(csv.DictReader(f))
+    row = rows[idx]
+    # متن جزئیات ثبت‌نام
+    message = "📌 جزئیات ثبت‌نام:\n"
+    for key in PERSIAN_HEADERS:
+        message += f"{key}: {row.get(key,'')}\n"
+    query.answer()
+    query.edit_message_text(message)
+
 # ---------------- Save to CSV -----------------
 def save_to_csv(final_dict):
     file_exists = os.path.isfile(CSV_FILE)
@@ -347,4 +391,5 @@ def download_csv():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
