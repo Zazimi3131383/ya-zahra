@@ -30,36 +30,39 @@ def requires_auth(f):
 
 # ---------------- Telegram Notify -----------------
 def send_to_telegram(data):
-    """ارسال مشخصات فرم ثبت‌نام به تلگرام"""
-    token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    """
+    ارسال پیام زیبا به تلگرام بعد از ثبت‌نام
+    """
+    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
     chat_id = os.environ.get("TELEGRAM_CHAT_ID")
-    if not token or not chat_id:
-        print("⚠️ Telegram token or chat_id not found in environment variables.")
+    
+    if not bot_token or not chat_id:
+        print("توکن یا شماره چت تلگرام تنظیم نشده است!")
         return
+    
+    # ساخت پیام زیبا با emoji و قالب خوانا
+    message = "🎉 **ثبت‌نام جدید کارگاه** 🎉\n\n"
+    message += f"👤 نام و نام خانوادگی: {data.get('first_name','')} {data.get('last_name','')}\n"
+    message += f"🆔 کد ملی: {data.get('national_code','')}\n"
+    message += f"🎓 دانشگاه: {data.get('university','')} - {data.get('faculty','')}\n"
+    message += f"📚 مقطع و رشته: {data.get('degree','')} - {data.get('major','')}\n"
+    message += f"📞 شماره تماس: {data.get('phone','')}\n"
+    message += f"✅ درخواست گواهی: {data.get('certificate','')}\n"
 
-    message = (
-        "📋 *فرم جدید ثبت‌نام دریافت شد:*\n\n"
-        f"👤 *نام:* {data.get('first_name', '')}\n"
-        f"👤 *نام خانوادگی:* {data.get('last_name', '')}\n"
-        f"🆔 *کد ملی:* {data.get('national_code', '')}\n"
-        f"🎓 *شماره دانشجویی:* {data.get('student_number', '')}\n"
-        f"🏛 *دانشگاه:* {data.get('university', '')}\n"
-        f"🏫 *دانشکده:* {data.get('faculty', '')}\n"
-        f"🚻 *جنسیت:* {data.get('gender', '')}\n"
-        f"📞 *تلفن:* {data.get('phone', '')}\n"
-        f"📘 *مقطع:* {data.get('degree', '')}\n"
-        f"📗 *رشته:* {data.get('major', '')}\n"
-        f"📄 *گواهی:* {data.get('certificate', '')}"
-    )
+    # API تلگرام
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    resp = requests.post(url, data={
+        "chat_id": chat_id,
+        "text": message,
+        "parse_mode": "Markdown"
+    })
 
-    try:
-        requests.post(
-            f"https://api.telegram.org/bot{token}/sendMessage",
-            json={"chat_id": chat_id, "text": message, "parse_mode": "Markdown"}
-        )
-    except Exception as e:
-        print("❌ خطا در ارسال پیام تلگرام:", e)
-
+    # بررسی وضعیت ارسال
+    if resp.status_code == 200:
+        print("پیام به تلگرام با موفقیت ارسال شد ✅")
+    else:
+        print("ارسال پیام به تلگرام موفق نبود ❌:", resp.text)
+        
 # ---------------- Save to CSV -----------------
 def save_to_csv(final_dict):
     file_exists = os.path.isfile(CSV_FILE)
@@ -344,3 +347,4 @@ def download_csv():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
