@@ -378,7 +378,7 @@ def payment_upload():
         return redirect("/")
 
     if request.method == "POST":
-        file = request.files.get("file")
+        file = request.files.get("receipt_file")
         if not file or file.filename == "":
             return Response("خطا در ارسال فیش. لطفاً فایل دیگری را امتحان کنید.", status=400)
 
@@ -1156,6 +1156,7 @@ if __name__ == "__main__":
     # در محیط تولید (Production)، بهتر است از طریق gunicorn یا مشابه آن اجرا شود.
     # در محیط توسعه، این خط اجرا می‌شود:
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+
 
 
 
