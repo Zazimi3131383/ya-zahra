@@ -321,35 +321,50 @@ def index():
 @app.route("/start_form", methods=["POST"])
 def start_form():
     """شروع فرآیند ثبت نام و هدایت به فرم"""
+    session.clear()
+    session["step"] = "form"  # مرحله اول شروع شد
     return redirect("/form")
-
+    
 @app.route("/form", methods=["GET", "POST"])
-def register_form():
-    """نمایش و پردازش فرم ثبت نام"""
+def form_page():
+    """فرم ثبت نام"""
+    # جلوگیری از ورود مستقیم (فقط اگر از start_form آمده باشد)
+    if session.get("step") != "form":
+        return redirect("/")
+
     if request.method == "POST":
-        # ذخیره موقت اطلاعات در سشن
+        # ذخیره اطلاعات فرم در سشن
         session["reg_data"] = request.form.to_dict()
+        session["step"] = "certificate"  # اجازه مرحله بعد
         return redirect("/certificate")
+
     return render_template_string(form_html)
+
 
 @app.route("/certificate", methods=["GET", "POST"])
 def certificate_choice():
     """انتخاب گزینه گواهی و هدایت به مرحله بعد"""
+    # جلوگیری از ورود مستقیم یا رفرش
+    if session.get("step") != "certificate":
+        return redirect("/")
+
     if request.method == "POST":
         choice = request.form.get("certificate")
         if not session.get("reg_data"):
-            return redirect("/") # اگر اطلاعات قبلی وجود نداشت
+            return redirect("/")  # اگر داده‌های مرحله قبل وجود ندارد
 
         session["reg_data"]["certificate"] = choice
         
-        # اگر خواهان گواهی بود، به صفحه پرداخت/آپلود هدایت شود
         if choice and "خواهان گواهی هستم" in choice:
+            # اگر گواهی می‌خواهد، برود مرحله پرداخت
+            session["step"] = "payment"
             return redirect("/payment_upload")
         else:
-            # اگر خواهان گواهی نبود، ثبت نهایی و ارسال به تلگرام (بدون فیش)
+            # اگر گواهی نمی‌خواهد، پایان ثبت نام
             final_data = session.pop("reg_data")
             save_to_csv(final_data)
             send_to_telegram(final_data)
+            session.clear()
             return redirect("/thanks")
 
     return render_template_string(certificate_html)
@@ -357,55 +372,39 @@ def certificate_choice():
 
 @app.route("/payment_upload", methods=["GET", "POST"])
 def payment_upload():
-    """صفحه نمایش شماره کارت و آپلود فیش واریزی"""
+    """آپلود رسید پرداخت"""
+    # جلوگیری از ورود مستقیم یا رفرش
+    if session.get("step") != "payment":
+        return redirect("/")
+
     if request.method == "POST":
-        # بررسی وجود فایل
-        if "receipt_file" not in request.files:
-            # از آنجایی که آپلود با AJAX است، بهتر است پاسخ 400 برگردد تا خطا در کلاینت نمایش داده شود
-            return Response("فایل فیش واریزی مورد نیاز است", status=400)
-            
-        file = request.files["receipt_file"]
-        if file.filename == "":
-            return Response("فایل انتخاب نشده است", status=400)
+        file = request.files.get("file")
+        if not file:
+            return Response("هیچ فایلی ارسال نشده", status=400)
 
-        if file:
-            try:
-                # ساخت نام فایل منحصر به فرد
-                filename = secure_filename(file.filename)
-                # از نام خانوادگی برای جلوگیری از تداخل استفاده می‌کنیم
-                first_name = session.get("reg_data", {}).get("first_name", "temp")
-                last_name = session.get("reg_data", {}).get("last_name", "temp")
-                
-                # ترکیب نام با یک شناسه منحصر به فرد (مثلاً timestamp) برای جلوگیری از overwrite
-                import time
-                unique_filename = f"{first_name}_{last_name}_{int(time.time())}_{filename}"
-                
-                filepath = os.path.join(app.config["UPLOAD_FOLDER"], unique_filename)
-                file.save(filepath)
-                
-                # ثبت نهایی در CSV و ارسال به تلگرام
-                if not session.get("reg_data"):
-                    return redirect("/") # اطلاعات سشن از دست رفته است
-                    
-                final_data = session.pop("reg_data")
-                final_data["receipt_file"] = unique_filename # ذخیره نام فایل در CSV
-                
-                save_to_csv(final_data)
-                send_to_telegram(final_data, receipt_filepath=filepath)
-                
-                # پاسخ موفقیت آمیز برای ریدایرکت توسط JavaScript
-                return Response("ثبت نهایی موفق", status=200)
+        # ذخیره فایل رسید
+        filename = file.filename
+        unique_filename = f"{int(time.time())}_{filename}"
+        filepath = os.path.join("uploads", unique_filename)
+        os.makedirs("uploads", exist_ok=True)
+        file.save(filepath)
 
-            except Exception as e:
-                print(f"خطا در آپلود فایل یا ذخیره: {e}")
-                return Response(f"خطای داخلی سرور: {e}", status=500)
+        final_data = session.pop("reg_data")
+        final_data["receipt_file"] = unique_filename
+        save_to_csv(final_data)
+        send_to_telegram(final_data, receipt_filepath=filepath)
 
-    # نمایش صفحه در متد GET
+        session.clear()  # جلوگیری از ثبت مجدد در صورت رفرش
+        return Response("ثبت نهایی موفق", status=200)
+
     return render_template_string(payment_upload_html)
+
 
 @app.route("/thanks", methods=["GET"])
 def thanks():
     """صفحه تشکر نهایی"""
+    if session.get("step") not in [None, "done"]:
+        return redirect("/")
     return render_template_string(thanks_html)
 
 # ---------------- Admin Routes -----------------
@@ -1147,6 +1146,7 @@ if __name__ == "__main__":
     # در محیط تولید (Production)، بهتر است از طریق gunicorn یا مشابه آن اجرا شود.
     # در محیط توسعه، این خط اجرا می‌شود:
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+
 
 
 
