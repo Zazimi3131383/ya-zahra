@@ -620,7 +620,7 @@ button:hover { background:linear-gradient(90deg,#ffd633,#ffa31a); transform:scal
     <option value="مرد">مرد</option>
     <option value="زن">زن</option>
   </select>
-  <label>شماره تلفن:</label><input type="text" name="phone" pattern="[0-9۰-۹]+" inputmode="numeric" required>
+  <label>شماره تلفن:</label><input type="text" name="phone" pattern="[0-9۰-۹]{11}" inputmode="numeric" required>
   <label>مقطع تحصیلی:</label>
   <select name="degree" required>
     <option value="">انتخاب کنید</option>
@@ -1154,6 +1154,7 @@ if __name__ == "__main__":
     # در محیط تولید (Production)، بهتر است از طریق gunicorn یا مشابه آن اجرا شود.
     # در محیط توسعه، این خط اجرا می‌شود:
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+
 
 
 
