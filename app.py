@@ -23,7 +23,7 @@ except ImportError:
         def to_dict(self): return {'inline_keyboard': self.keyboard}
         
 from functools import wraps
-import csv, os, requests
+import csv, os, requests, time
 import json
 from werkzeug.utils import secure_filename
 
@@ -1154,6 +1154,7 @@ if __name__ == "__main__":
     # در محیط تولید (Production)، بهتر است از طریق gunicorn یا مشابه آن اجرا شود.
     # در محیط توسعه، این خط اجرا می‌شود:
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+
 
 
 
