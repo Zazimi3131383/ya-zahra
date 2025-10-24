@@ -379,22 +379,32 @@ def payment_upload():
 
     if request.method == "POST":
         file = request.files.get("file")
-        if not file:
-            return Response("هیچ فایلی ارسال نشده", status=400)
+        if not file or file.filename == "":
+            return Response("خطا در ارسال فیش. لطفاً فایل دیگری را امتحان کنید.", status=400)
 
-        # ذخیره فایل رسید
+        # مسیر ذخیره فایل
+        os.makedirs("uploads", exist_ok=True)
         filename = file.filename
         unique_filename = f"{int(time.time())}_{filename}"
         filepath = os.path.join("uploads", unique_filename)
-        os.makedirs("uploads", exist_ok=True)
-        file.save(filepath)
 
-        final_data = session.pop("reg_data")
-        final_data["receipt_file"] = unique_filename
-        save_to_csv(final_data)
-        send_to_telegram(final_data, receipt_filepath=filepath)
+        try:
+            file.save(filepath)
+        except Exception as e:
+            print("❌ خطا در ذخیره فایل:", e)
+            return Response("خطا در ذخیره فیش. لطفاً دوباره تلاش کنید.", status=500)
 
-        session.clear()  # جلوگیری از ثبت مجدد در صورت رفرش
+        # مرحله بعدی: ارسال به تلگرام
+        try:
+            final_data = session.pop("reg_data", {})
+            final_data["receipt_file"] = unique_filename
+            save_to_csv(final_data)
+            send_to_telegram(final_data, receipt_filepath=filepath)
+        except Exception as e:
+            print("❌ خطا در ارسال به تلگرام:", e)
+            return Response("خطا در ارسال فیش. لطفاً فایل دیگری را امتحان کنید.", status=500)
+
+        session.clear()
         return Response("ثبت نهایی موفق", status=200)
 
     return render_template_string(payment_upload_html)
@@ -1146,6 +1156,7 @@ if __name__ == "__main__":
     # در محیط تولید (Production)، بهتر است از طریق gunicorn یا مشابه آن اجرا شود.
     # در محیط توسعه، این خط اجرا می‌شود:
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+
 
 
 
