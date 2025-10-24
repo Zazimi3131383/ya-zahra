@@ -373,16 +373,15 @@ def certificate_choice():
 @app.route("/payment_upload", methods=["GET", "POST"])
 def payment_upload():
     """آپلود رسید پرداخت"""
-    # جلوگیری از ورود مستقیم یا رفرش
     if session.get("step") != "payment":
         return redirect("/")
 
     if request.method == "POST":
+        # نام فیلد HTML = receipt_file
         file = request.files.get("receipt_file")
         if not file or file.filename == "":
             return Response("خطا در ارسال فیش. لطفاً فایل دیگری را امتحان کنید.", status=400)
 
-        # مسیر ذخیره فایل
         os.makedirs("uploads", exist_ok=True)
         filename = file.filename
         unique_filename = f"{int(time.time())}_{filename}"
@@ -394,7 +393,6 @@ def payment_upload():
             print("❌ خطا در ذخیره فایل:", e)
             return Response("خطا در ذخیره فیش. لطفاً دوباره تلاش کنید.", status=500)
 
-        # مرحله بعدی: ارسال به تلگرام
         try:
             final_data = session.pop("reg_data", {})
             final_data["receipt_file"] = unique_filename
@@ -1156,6 +1154,7 @@ if __name__ == "__main__":
     # در محیط تولید (Production)، بهتر است از طریق gunicorn یا مشابه آن اجرا شود.
     # در محیط توسعه، این خط اجرا می‌شود:
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+
 
 
 
