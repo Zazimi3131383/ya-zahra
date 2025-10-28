@@ -310,12 +310,13 @@ def save_to_csv(final_dict):
         )
 
 # ---------------- Routes -----------------
+FORM_ACTIVE = False
+
 
 @app.route("/", methods=["GET"])
-FORM_ACTIVE = False
 def index():
     if not FORM_ACTIVE:
-    return '<h3 style="text-align:center;color:red;margin-top:50px;">این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h3>'
+        return '<h3 style="text-align:center;color:red;margin-top:50px;">این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h3>'
     
     """صفحه قوانین و شروع ثبت نام"""
     # پاک کردن سشن در شروع
@@ -1158,6 +1159,7 @@ if __name__ == "__main__":
     # در محیط تولید (Production)، بهتر است از طریق gunicorn یا مشابه آن اجرا شود.
     # در محیط توسعه، این خط اجرا می‌شود:
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+
 
 
 
