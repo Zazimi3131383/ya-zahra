@@ -1557,21 +1557,4 @@ button:hover { background:linear-gradient(90deg,#218838,#1e7e34); transform:scal
 if __name__ == "__main__":
     # در محیط تولید (Production)، بهتر است از طریق gunicorn یا مشابه آن اجرا شود.
     # در محیط توسعه، این خط اجرا می‌شود:
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True
