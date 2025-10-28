@@ -345,28 +345,26 @@ def index():
 @app.route("/start_form", methods=["POST"])
 def start_form():
     if not FORM_ACTIVE:
-        return '''
-        <div style="
-            display:flex;
-            justify-content:center;
-            align-items:center;
-            height:100vh;
-            background: rgba(0, 123, 255, 0.1); /* پس‌زمینه آبی روشن */
-            backdrop-filter: blur(10px);       /* افکت شیشه‌ای */
-        ">
-            <h3 style="
-                color: #007bff;                  /* رنگ آبی */
-                font-family: Arial, sans-serif;
-                text-align: center;
-                padding: 20px;
-                border-radius: 15px;
-                background: rgba(255, 255, 255, 0.2);
-                box-shadow: 0 0 10px rgba(0,0,0,0.2);
-            ">
-                این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد
-            </h3>
+        return """
+        <!DOCTYPE html>
+        <html lang="fa" dir="rtl">
+        <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>ثبت‌نام غیر‌فعال</title>
+        <style>
+        body { margin: 0; font-family: 'Vazir', sans-serif; background: linear-gradient(135deg,#1e3c72,#2a5298); color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .card { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius: 20px; padding: 2rem; max-width: 480px; width: 90%; box-shadow: 0 8px 20px rgba(0,0,0,0.2); text-align:center; }
+        h1 { font-size: 1.3rem; color: #ff5c5c; line-height: 1.8; }
+        </style>
+        </head>
+        <body>
+        <div class="card">
+          <h1>این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h1>
         </div>
-        '''
+        </body>
+        </html>
+        """
 
     """شروع فرآیند ثبت نام و هدایت به فرم"""
     session.clear()
@@ -376,28 +374,26 @@ def start_form():
 @app.route("/form", methods=["GET", "POST"])
 def form_page():
     if not FORM_ACTIVE:
-        return '''
-        <div style="
-            display:flex;
-            justify-content:center;
-            align-items:center;
-            height:100vh;
-            background: rgba(0, 123, 255, 0.1); /* پس‌زمینه آبی روشن */
-            backdrop-filter: blur(10px);       /* افکت شیشه‌ای */
-        ">
-            <h3 style="
-                color: #007bff;                  /* رنگ آبی */
-                font-family: Arial, sans-serif;
-                text-align: center;
-                padding: 20px;
-                border-radius: 15px;
-                background: rgba(255, 255, 255, 0.2);
-                box-shadow: 0 0 10px rgba(0,0,0,0.2);
-            ">
-                این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد
-            </h3>
+        return """
+        <!DOCTYPE html>
+        <html lang="fa" dir="rtl">
+        <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>ثبت‌نام غیر‌فعال</title>
+        <style>
+        body { margin: 0; font-family: 'Vazir', sans-serif; background: linear-gradient(135deg,#1e3c72,#2a5298); color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .card { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius: 20px; padding: 2rem; max-width: 480px; width: 90%; box-shadow: 0 8px 20px rgba(0,0,0,0.2); text-align:center; }
+        h1 { font-size: 1.3rem; color: #ff5c5c; line-height: 1.8; }
+        </style>
+        </head>
+        <body>
+        <div class="card">
+          <h1>این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h1>
         </div>
-        '''
+        </body>
+        </html>
+        """
 
     """فرم ثبت نام"""
     # جلوگیری از ورود مستقیم (فقط اگر از start_form آمده باشد)
@@ -416,28 +412,26 @@ def form_page():
 @app.route("/certificate", methods=["GET", "POST"])
 def certificate_choice():
     if not FORM_ACTIVE:
-        return '''
-        <div style="
-            display:flex;
-            justify-content:center;
-            align-items:center;
-            height:100vh;
-            background: rgba(0, 123, 255, 0.1); /* پس‌زمینه آبی روشن */
-            backdrop-filter: blur(10px);       /* افکت شیشه‌ای */
-        ">
-            <h3 style="
-                color: #007bff;                  /* رنگ آبی */
-                font-family: Arial, sans-serif;
-                text-align: center;
-                padding: 20px;
-                border-radius: 15px;
-                background: rgba(255, 255, 255, 0.2);
-                box-shadow: 0 0 10px rgba(0,0,0,0.2);
-            ">
-                این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد
-            </h3>
+        return """
+        <!DOCTYPE html>
+        <html lang="fa" dir="rtl">
+        <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>ثبت‌نام غیر‌فعال</title>
+        <style>
+        body { margin: 0; font-family: 'Vazir', sans-serif; background: linear-gradient(135deg,#1e3c72,#2a5298); color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .card { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius: 20px; padding: 2rem; max-width: 480px; width: 90%; box-shadow: 0 8px 20px rgba(0,0,0,0.2); text-align:center; }
+        h1 { font-size: 1.3rem; color: #ff5c5c; line-height: 1.8; }
+        </style>
+        </head>
+        <body>
+        <div class="card">
+          <h1>این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h1>
         </div>
-        '''
+        </body>
+        </html>
+        """
 
     """انتخاب گزینه گواهی و هدایت به مرحله بعد"""
     # جلوگیری از ورود مستقیم یا رفرش
@@ -469,28 +463,26 @@ def certificate_choice():
 @app.route("/payment_upload", methods=["GET", "POST"])
 def payment_upload():
     if not FORM_ACTIVE:
-        return '''
-        <div style="
-            display:flex;
-            justify-content:center;
-            align-items:center;
-            height:100vh;
-            background: rgba(0, 123, 255, 0.1); /* پس‌زمینه آبی روشن */
-            backdrop-filter: blur(10px);       /* افکت شیشه‌ای */
-        ">
-            <h3 style="
-                color: #007bff;                  /* رنگ آبی */
-                font-family: Arial, sans-serif;
-                text-align: center;
-                padding: 20px;
-                border-radius: 15px;
-                background: rgba(255, 255, 255, 0.2);
-                box-shadow: 0 0 10px rgba(0,0,0,0.2);
-            ">
-                این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد
-            </h3>
+        return """
+        <!DOCTYPE html>
+        <html lang="fa" dir="rtl">
+        <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>ثبت‌نام غیر‌فعال</title>
+        <style>
+        body { margin: 0; font-family: 'Vazir', sans-serif; background: linear-gradient(135deg,#1e3c72,#2a5298); color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .card { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius: 20px; padding: 2rem; max-width: 480px; width: 90%; box-shadow: 0 8px 20px rgba(0,0,0,0.2); text-align:center; }
+        h1 { font-size: 1.3rem; color: #ff5c5c; line-height: 1.8; }
+        </style>
+        </head>
+        <body>
+        <div class="card">
+          <h1>این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h1>
         </div>
-        '''
+        </body>
+        </html>
+        """
 
     """آپلود رسید پرداخت"""
     if session.get("step") != "payment":
@@ -531,28 +523,26 @@ def payment_upload():
 @app.route("/thanks", methods=["GET"])
 def thanks():
     if not FORM_ACTIVE:
-        return '''
-        <div style="
-            display:flex;
-            justify-content:center;
-            align-items:center;
-            height:100vh;
-            background: rgba(0, 123, 255, 0.1); /* پس‌زمینه آبی روشن */
-            backdrop-filter: blur(10px);       /* افکت شیشه‌ای */
-        ">
-            <h3 style="
-                color: #007bff;                  /* رنگ آبی */
-                font-family: Arial, sans-serif;
-                text-align: center;
-                padding: 20px;
-                border-radius: 15px;
-                background: rgba(255, 255, 255, 0.2);
-                box-shadow: 0 0 10px rgba(0,0,0,0.2);
-            ">
-                این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد
-            </h3>
+        return """
+        <!DOCTYPE html>
+        <html lang="fa" dir="rtl">
+        <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>ثبت‌نام غیر‌فعال</title>
+        <style>
+        body { margin: 0; font-family: 'Vazir', sans-serif; background: linear-gradient(135deg,#1e3c72,#2a5298); color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .card { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius: 20px; padding: 2rem; max-width: 480px; width: 90%; box-shadow: 0 8px 20px rgba(0,0,0,0.2); text-align:center; }
+        h1 { font-size: 1.3rem; color: #ff5c5c; line-height: 1.8; }
+        </style>
+        </head>
+        <body>
+        <div class="card">
+          <h1>این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h1>
         </div>
-        '''
+        </body>
+        </html>
+        """
 
     """صفحه تشکر نهایی"""
     if session.get("step") not in [None, "done"]:
@@ -1298,6 +1288,7 @@ if __name__ == "__main__":
     # در محیط تولید (Production)، بهتر است از طریق gunicorn یا مشابه آن اجرا شود.
     # در محیط توسعه، این خط اجرا می‌شود:
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+
 
 
 
