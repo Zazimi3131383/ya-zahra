@@ -65,7 +65,8 @@ YOUR_CARD_NAME = os.environ.get("YOUR_CARD_NAME")
 RAW_CARD_NUMBER = os.environ.get("YOUR_CARD_NUMBER")
 
 # فرمت کردن شماره کارت (62861872975239 -> 6286-1872-9752-39)
-YOUR_CARD_NUMBER_DISPLAY = "-".join([RAW_CARD_NUMBER[i:i+4] for i in range(0, len(RAW_CARD_NUMBER), 4)])
+YOUR_CARD_NUMBER_DISPLAY = "-".join([RAW_CARD_NUMBER[i:i+4] for i in range(0, len(RAW_CARD_NUMBER), 4)]) if RAW_CARD_NUMBER else ""
+
 
 # ! ستون جدید "فیش واریزی" اضافه شد
 PERSIAN_HEADERS = [
@@ -82,6 +83,14 @@ PERSIAN_HEADERS = [
     "گواهی",
     "فیش واریزی",  # ستون جدید
 ]
+
+# --- کنترل وضعیت فرم با فایل فلگ ---
+# اگر این فایل وجود داشته باشد، فرم غیرفعال است.
+FORM_INACTIVE_FLAG_FILE = "form_inactive.flag"
+
+def is_form_active():
+    """بررسی می‌کند که آیا فایل فلگ وجود دارد یا نه. اگر وجود نداشت، فرم فعال است."""
+    return not os.path.exists(FORM_INACTIVE_FLAG_FILE)
 
 
 # ---------------- Authentication -----------------
@@ -310,12 +319,10 @@ def save_to_csv(final_dict):
         )
 
 # ---------------- Routes -----------------
-FORM_ACTIVE = False
-
 
 @app.route("/", methods=["GET"])
 def index():
-    if not FORM_ACTIVE:
+    if not is_form_active():
         return """
         <!DOCTYPE html>
         <html lang="fa" dir="rtl">
@@ -389,7 +396,7 @@ def index():
 
 @app.route("/start_form", methods=["POST"])
 def start_form():
-    if not FORM_ACTIVE:
+    if not is_form_active():
         return """
         <!DOCTYPE html>
         <html lang="fa" dir="rtl">
@@ -463,7 +470,7 @@ def start_form():
     
 @app.route("/form", methods=["GET", "POST"])
 def form_page():
-    if not FORM_ACTIVE:
+    if not is_form_active():
         return """
         <!DOCTYPE html>
         <html lang="fa" dir="rtl">
@@ -546,7 +553,7 @@ def form_page():
 
 @app.route("/certificate", methods=["GET", "POST"])
 def certificate_choice():
-    if not FORM_ACTIVE:
+    if not is_form_active():
         return """
         <!DOCTYPE html>
         <html lang="fa" dir="rtl">
@@ -642,7 +649,7 @@ def certificate_choice():
 
 @app.route("/payment_upload", methods=["GET", "POST"])
 def payment_upload():
-    if not FORM_ACTIVE:
+    if not is_form_active():
         return """
         <!DOCTYPE html>
         <html lang="fa" dir="rtl">
@@ -747,76 +754,15 @@ def payment_upload():
 
 @app.route("/thanks", methods=["GET"])
 def thanks():
-    if not FORM_ACTIVE:
-        return """
-        <!DOCTYPE html>
-        <html lang="fa" dir="rtl">
-        <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>پرسشنامه غیر‌فعال</title>
-        <style>
-        body { 
-            margin: 0; 
-            font-family: 'Vazir', sans-serif; 
-            background: linear-gradient(135deg,#1e3c72,#2a5298); 
-            color: #fff; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            min-height: 100vh; 
-        }
-        .card { 
-            background: rgba(255,255,255,0.1); 
-            backdrop-filter: blur(10px); 
-            border-radius: 20px; 
-            padding: 2rem; 
-            max-width: 480px; 
-            width: 90%; 
-            box-shadow: 0 8px 20px rgba(0,0,0,0.2); 
-            text-align: center; 
-        }
-        h1 { 
-            font-size: 1.4rem; 
-            color: #ff5c5c;  /* رنگ قرمز برای پیام اصلی */
-            margin-bottom: 1rem; 
-            line-height: 1.8; 
-        }
-        p { 
-            font-size: 1.1rem; 
-            line-height: 1.8;
-        }
-        a.btn { 
-            display: inline-block; 
-            margin-top: 1.5rem; 
-            background: linear-gradient(90deg,#ffdf5d,#ffb84d); 
-            color: #000; 
-            border: none; 
-            border-radius: 10px; 
-            padding: 0.6rem 1.2rem; 
-            text-decoration: none; 
-            font-weight: bold;
-            transition: all 0.3s ease; 
-        }
-        a.btn:hover { 
-            background: linear-gradient(90deg,#ffd633,#ffa31a); 
-            transform: scale(1.05); 
-        }
-        </style>
-        </head>
-        <body>
-        <div class="card">
-          <h1>به علت تکمیل ظرفیت پذیرش، این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h1>
-          <p>متعاقباً اطلاعات تکمیلی در کانال تلگرام بارگذاری خواهد شد.</p>
-          <a href="https://t.me/article_workshop1" class="btn" target="_blank">ورود به کانال تلگرام</a>
-        </div>
-        </body>
-        </html>
-        """
+    if not is_form_active():
+        # حتی اگر فرم غیرفعال باشد، صفحه تشکر باید برای کسانی که در لحظه آخر ثبت‌نام کرده‌اند نمایش داده شود.
+        # پس این بخش را کامنت می‌کنیم تا صفحه تشکر همیشه در دسترس باشد.
+        # return "فرم غیرفعال است"
+        pass
 
     """صفحه تشکر نهایی"""
-    if session.get("step") not in [None, "done"]:
-        return redirect("/")
+    # if session.get("step") not in [None, "done"]:
+    #     return redirect("/")
     return render_template_string(thanks_html)
 
 # ---------------- Admin Routes -----------------
@@ -830,8 +776,24 @@ def admin_panel():
         with open(CSV_FILE, "r", encoding="utf-8-sig") as f:
             rows = list(csv.DictReader(f))
     
-    # render_template_string به جای render_template برای سازگاری با محیط
-    return render_template_string(admin_html, rows=rows, headers=PERSIAN_HEADERS)
+    # ارسال وضعیت فعلی فرم به قالب
+    return render_template_string(admin_html, rows=rows, headers=PERSIAN_HEADERS, form_is_active=is_form_active())
+
+@app.route("/admin/toggle_form", methods=["POST"])
+@requires_auth
+def toggle_form_status():
+    """وضعیت فرم را با ایجاد یا حذف فایل فلگ تغییر می‌دهد"""
+    if is_form_active():
+        # اگر فرم فعال است، آن را با ایجاد فایل غیرفعال کن
+        with open(FORM_INACTIVE_FLAG_FILE, "w") as f:
+            f.write("inactive")
+    else:
+        # اگر فرم غیرفعال است، آن را با حذف فایل فعال کن
+        if os.path.exists(FORM_INACTIVE_FLAG_FILE):
+            os.remove(FORM_INACTIVE_FLAG_FILE)
+    
+    return redirect("/admin")
+
 
 @app.route("/uploads/<filename>")
 @requires_auth
@@ -1409,6 +1371,29 @@ a.receipt-link:hover {
 <body>
 <div class="card">
 <h3>پنل مدیریت</h3>
+
+<!-- بخش جدید: کنترل وضعیت فرم -->
+<div class="alert {% if form_is_active %}alert-success{% else %}alert-danger{% endif %} d-flex justify-content-between align-items-center">
+  <span>
+    <strong>وضعیت فعلی فرم:</strong> 
+    {% if form_is_active %}
+      فعال (کاربران می‌توانند ثبت‌نام کنند)
+    {% else %}
+      غیرفعال (کاربران نمی‌توانند ثبت‌نام کنند)
+    {% endif %}
+  </span>
+  <form action="/admin/toggle_form" method="POST" class="mb-0">
+    <button type="submit" class="btn {% if form_is_active %}btn-danger{% else %}btn-success{% endif %}">
+      {% if form_is_active %}
+        غیرفعال کردن فرم
+      {% else %}
+        فعال کردن فرم
+      {% endif %}
+    </button>
+  </form>
+</div>
+
+
 <a href="/download_csv" class="btn-download">دانلود کل CSV</a>
 <!-- دکمه‌های فیلتر -->
 <a href="/download_csv_filtered?certificate=خواهان گواهی هستم (50 هزار تومان)" class="btn-download" style="background: #28a745; color: white;">دانلود CSV (فقط با گواهی)</a>
@@ -1558,23 +1543,3 @@ if __name__ == "__main__":
     # در محیط تولید (Production)، بهتر است از طریق gunicorn یا مشابه آن اجرا شود.
     # در محیط توسعه، این خط اجرا می‌شود:
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
