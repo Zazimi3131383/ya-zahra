@@ -347,7 +347,28 @@ def index():
 @app.route("/start_form", methods=["POST"])
 def start_form():
     if not FORM_ACTIVE:
-        return '<h3 style="text-align:center;color:red;margin-top:50px;">این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h3>'
+        return '''
+        <div style="
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            height:100vh;
+            background: rgba(0, 123, 255, 0.1); /* پس‌زمینه آبی روشن */
+            backdrop-filter: blur(10px);       /* افکت شیشه‌ای */
+        ">
+            <h3 style="
+                color: #007bff;                  /* رنگ آبی */
+                font-family: Arial, sans-serif;
+                text-align: center;
+                padding: 20px;
+                border-radius: 15px;
+                background: rgba(255, 255, 255, 0.2);
+                box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            ">
+                این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد
+            </h3>
+        </div>
+        '''
 
     """شروع فرآیند ثبت نام و هدایت به فرم"""
     session.clear()
@@ -357,7 +378,28 @@ def start_form():
 @app.route("/form", methods=["GET", "POST"])
 def form_page():
     if not FORM_ACTIVE:
-        return '<h3 style="text-align:center;color:red;margin-top:50px;">این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h3>'
+        return '''
+        <div style="
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            height:100vh;
+            background: rgba(0, 123, 255, 0.1); /* پس‌زمینه آبی روشن */
+            backdrop-filter: blur(10px);       /* افکت شیشه‌ای */
+        ">
+            <h3 style="
+                color: #007bff;                  /* رنگ آبی */
+                font-family: Arial, sans-serif;
+                text-align: center;
+                padding: 20px;
+                border-radius: 15px;
+                background: rgba(255, 255, 255, 0.2);
+                box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            ">
+                این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد
+            </h3>
+        </div>
+        '''
 
     """فرم ثبت نام"""
     # جلوگیری از ورود مستقیم (فقط اگر از start_form آمده باشد)
@@ -376,7 +418,28 @@ def form_page():
 @app.route("/certificate", methods=["GET", "POST"])
 def certificate_choice():
     if not FORM_ACTIVE:
-        return '<h3 style="text-align:center;color:red;margin-top:50px;">این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h3>'
+        return '''
+        <div style="
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            height:100vh;
+            background: rgba(0, 123, 255, 0.1); /* پس‌زمینه آبی روشن */
+            backdrop-filter: blur(10px);       /* افکت شیشه‌ای */
+        ">
+            <h3 style="
+                color: #007bff;                  /* رنگ آبی */
+                font-family: Arial, sans-serif;
+                text-align: center;
+                padding: 20px;
+                border-radius: 15px;
+                background: rgba(255, 255, 255, 0.2);
+                box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            ">
+                این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد
+            </h3>
+        </div>
+        '''
 
     """انتخاب گزینه گواهی و هدایت به مرحله بعد"""
     # جلوگیری از ورود مستقیم یا رفرش
@@ -408,7 +471,28 @@ def certificate_choice():
 @app.route("/payment_upload", methods=["GET", "POST"])
 def payment_upload():
     if not FORM_ACTIVE:
-        return '<h3 style="text-align:center;color:red;margin-top:50px;">این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h3>'
+        return '''
+        <div style="
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            height:100vh;
+            background: rgba(0, 123, 255, 0.1); /* پس‌زمینه آبی روشن */
+            backdrop-filter: blur(10px);       /* افکت شیشه‌ای */
+        ">
+            <h3 style="
+                color: #007bff;                  /* رنگ آبی */
+                font-family: Arial, sans-serif;
+                text-align: center;
+                padding: 20px;
+                border-radius: 15px;
+                background: rgba(255, 255, 255, 0.2);
+                box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            ">
+                این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد
+            </h3>
+        </div>
+        '''
 
     """آپلود رسید پرداخت"""
     if session.get("step") != "payment":
@@ -449,7 +533,28 @@ def payment_upload():
 @app.route("/thanks", methods=["GET"])
 def thanks():
     if not FORM_ACTIVE:
-        return '<h3 style="text-align:center;color:red;margin-top:50px;">این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h3>'
+        return '''
+        <div style="
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            height:100vh;
+            background: rgba(0, 123, 255, 0.1); /* پس‌زمینه آبی روشن */
+            backdrop-filter: blur(10px);       /* افکت شیشه‌ای */
+        ">
+            <h3 style="
+                color: #007bff;                  /* رنگ آبی */
+                font-family: Arial, sans-serif;
+                text-align: center;
+                padding: 20px;
+                border-radius: 15px;
+                background: rgba(255, 255, 255, 0.2);
+                box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            ">
+                این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد
+            </h3>
+        </div>
+        '''
 
     """صفحه تشکر نهایی"""
     if session.get("step") not in [None, "done"]:
@@ -1195,6 +1300,7 @@ if __name__ == "__main__":
     # در محیط تولید (Production)، بهتر است از طریق gunicorn یا مشابه آن اجرا شود.
     # در محیط توسعه، این خط اجرا می‌شود:
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+
 
 
 
