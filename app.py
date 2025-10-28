@@ -320,18 +320,63 @@ def index():
         <!DOCTYPE html>
         <html lang="fa" dir="rtl">
         <head>
-        <meta charset="UTF-8" />
+        <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>ثبت‌نام غیر‌فعال</title>
+        <title>پرسشنامه غیر‌فعال</title>
         <style>
-        body { margin: 0; font-family: 'Vazir', sans-serif; background: linear-gradient(135deg,#1e3c72,#2a5298); color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .card { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius: 20px; padding: 2rem; max-width: 480px; width: 90%; box-shadow: 0 8px 20px rgba(0,0,0,0.2); text-align:center; }
-        h1 { font-size: 1.3rem; color: #ff5c5c; line-height: 1.8; }
+        body { 
+            margin: 0; 
+            font-family: 'Vazir', sans-serif; 
+            background: linear-gradient(135deg,#1e3c72,#2a5298); 
+            color: #fff; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+        }
+        .card { 
+            background: rgba(255,255,255,0.1); 
+            backdrop-filter: blur(10px); 
+            border-radius: 20px; 
+            padding: 2rem; 
+            max-width: 480px; 
+            width: 90%; 
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2); 
+            text-align: center; 
+        }
+        h1 { 
+            font-size: 1.4rem; 
+            color: #ff5c5c;  /* رنگ قرمز برای پیام اصلی */
+            margin-bottom: 1rem; 
+            line-height: 1.8; 
+        }
+        p { 
+            font-size: 1.1rem; 
+            line-height: 1.8;
+        }
+        a.btn { 
+            display: inline-block; 
+            margin-top: 1.5rem; 
+            background: linear-gradient(90deg,#ffdf5d,#ffb84d); 
+            color: #000; 
+            border: none; 
+            border-radius: 10px; 
+            padding: 0.6rem 1.2rem; 
+            text-decoration: none; 
+            font-weight: bold;
+            transition: all 0.3s ease; 
+        }
+        a.btn:hover { 
+            background: linear-gradient(90deg,#ffd633,#ffa31a); 
+            transform: scale(1.05); 
+        }
         </style>
         </head>
         <body>
         <div class="card">
-          <h1>این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h1>
+          <h1>به علت تکمیل ظرفیت پذیرش، این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h1>
+          <p>متعاقباً اطلاعات تکمیلی در کانال تلگرام بارگذاری خواهد شد.</p>
+          <a href="https://t.me/article_workshop1" class="btn" target="_blank">ورود به کانال تلگرام</a>
         </div>
         </body>
         </html>
@@ -349,18 +394,63 @@ def start_form():
         <!DOCTYPE html>
         <html lang="fa" dir="rtl">
         <head>
-        <meta charset="UTF-8" />
+        <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>ثبت‌نام غیر‌فعال</title>
+        <title>پرسشنامه غیر‌فعال</title>
         <style>
-        body { margin: 0; font-family: 'Vazir', sans-serif; background: linear-gradient(135deg,#1e3c72,#2a5298); color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .card { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius: 20px; padding: 2rem; max-width: 480px; width: 90%; box-shadow: 0 8px 20px rgba(0,0,0,0.2); text-align:center; }
-        h1 { font-size: 1.3rem; color: #ff5c5c; line-height: 1.8; }
+        body { 
+            margin: 0; 
+            font-family: 'Vazir', sans-serif; 
+            background: linear-gradient(135deg,#1e3c72,#2a5298); 
+            color: #fff; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+        }
+        .card { 
+            background: rgba(255,255,255,0.1); 
+            backdrop-filter: blur(10px); 
+            border-radius: 20px; 
+            padding: 2rem; 
+            max-width: 480px; 
+            width: 90%; 
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2); 
+            text-align: center; 
+        }
+        h1 { 
+            font-size: 1.4rem; 
+            color: #ff5c5c;  /* رنگ قرمز برای پیام اصلی */
+            margin-bottom: 1rem; 
+            line-height: 1.8; 
+        }
+        p { 
+            font-size: 1.1rem; 
+            line-height: 1.8;
+        }
+        a.btn { 
+            display: inline-block; 
+            margin-top: 1.5rem; 
+            background: linear-gradient(90deg,#ffdf5d,#ffb84d); 
+            color: #000; 
+            border: none; 
+            border-radius: 10px; 
+            padding: 0.6rem 1.2rem; 
+            text-decoration: none; 
+            font-weight: bold;
+            transition: all 0.3s ease; 
+        }
+        a.btn:hover { 
+            background: linear-gradient(90deg,#ffd633,#ffa31a); 
+            transform: scale(1.05); 
+        }
         </style>
         </head>
         <body>
         <div class="card">
-          <h1>این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h1>
+          <h1>به علت تکمیل ظرفیت پذیرش، این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h1>
+          <p>متعاقباً اطلاعات تکمیلی در کانال تلگرام بارگذاری خواهد شد.</p>
+          <a href="https://t.me/article_workshop1" class="btn" target="_blank">ورود به کانال تلگرام</a>
         </div>
         </body>
         </html>
@@ -378,18 +468,63 @@ def form_page():
         <!DOCTYPE html>
         <html lang="fa" dir="rtl">
         <head>
-        <meta charset="UTF-8" />
+        <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>ثبت‌نام غیر‌فعال</title>
+        <title>پرسشنامه غیر‌فعال</title>
         <style>
-        body { margin: 0; font-family: 'Vazir', sans-serif; background: linear-gradient(135deg,#1e3c72,#2a5298); color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .card { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius: 20px; padding: 2rem; max-width: 480px; width: 90%; box-shadow: 0 8px 20px rgba(0,0,0,0.2); text-align:center; }
-        h1 { font-size: 1.3rem; color: #ff5c5c; line-height: 1.8; }
+        body { 
+            margin: 0; 
+            font-family: 'Vazir', sans-serif; 
+            background: linear-gradient(135deg,#1e3c72,#2a5298); 
+            color: #fff; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+        }
+        .card { 
+            background: rgba(255,255,255,0.1); 
+            backdrop-filter: blur(10px); 
+            border-radius: 20px; 
+            padding: 2rem; 
+            max-width: 480px; 
+            width: 90%; 
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2); 
+            text-align: center; 
+        }
+        h1 { 
+            font-size: 1.4rem; 
+            color: #ff5c5c;  /* رنگ قرمز برای پیام اصلی */
+            margin-bottom: 1rem; 
+            line-height: 1.8; 
+        }
+        p { 
+            font-size: 1.1rem; 
+            line-height: 1.8;
+        }
+        a.btn { 
+            display: inline-block; 
+            margin-top: 1.5rem; 
+            background: linear-gradient(90deg,#ffdf5d,#ffb84d); 
+            color: #000; 
+            border: none; 
+            border-radius: 10px; 
+            padding: 0.6rem 1.2rem; 
+            text-decoration: none; 
+            font-weight: bold;
+            transition: all 0.3s ease; 
+        }
+        a.btn:hover { 
+            background: linear-gradient(90deg,#ffd633,#ffa31a); 
+            transform: scale(1.05); 
+        }
         </style>
         </head>
         <body>
         <div class="card">
-          <h1>این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h1>
+          <h1>به علت تکمیل ظرفیت پذیرش، این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h1>
+          <p>متعاقباً اطلاعات تکمیلی در کانال تلگرام بارگذاری خواهد شد.</p>
+          <a href="https://t.me/article_workshop1" class="btn" target="_blank">ورود به کانال تلگرام</a>
         </div>
         </body>
         </html>
@@ -416,18 +551,63 @@ def certificate_choice():
         <!DOCTYPE html>
         <html lang="fa" dir="rtl">
         <head>
-        <meta charset="UTF-8" />
+        <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>ثبت‌نام غیر‌فعال</title>
+        <title>پرسشنامه غیر‌فعال</title>
         <style>
-        body { margin: 0; font-family: 'Vazir', sans-serif; background: linear-gradient(135deg,#1e3c72,#2a5298); color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .card { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius: 20px; padding: 2rem; max-width: 480px; width: 90%; box-shadow: 0 8px 20px rgba(0,0,0,0.2); text-align:center; }
-        h1 { font-size: 1.3rem; color: #ff5c5c; line-height: 1.8; }
+        body { 
+            margin: 0; 
+            font-family: 'Vazir', sans-serif; 
+            background: linear-gradient(135deg,#1e3c72,#2a5298); 
+            color: #fff; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+        }
+        .card { 
+            background: rgba(255,255,255,0.1); 
+            backdrop-filter: blur(10px); 
+            border-radius: 20px; 
+            padding: 2rem; 
+            max-width: 480px; 
+            width: 90%; 
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2); 
+            text-align: center; 
+        }
+        h1 { 
+            font-size: 1.4rem; 
+            color: #ff5c5c;  /* رنگ قرمز برای پیام اصلی */
+            margin-bottom: 1rem; 
+            line-height: 1.8; 
+        }
+        p { 
+            font-size: 1.1rem; 
+            line-height: 1.8;
+        }
+        a.btn { 
+            display: inline-block; 
+            margin-top: 1.5rem; 
+            background: linear-gradient(90deg,#ffdf5d,#ffb84d); 
+            color: #000; 
+            border: none; 
+            border-radius: 10px; 
+            padding: 0.6rem 1.2rem; 
+            text-decoration: none; 
+            font-weight: bold;
+            transition: all 0.3s ease; 
+        }
+        a.btn:hover { 
+            background: linear-gradient(90deg,#ffd633,#ffa31a); 
+            transform: scale(1.05); 
+        }
         </style>
         </head>
         <body>
         <div class="card">
-          <h1>این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h1>
+          <h1>به علت تکمیل ظرفیت پذیرش، این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h1>
+          <p>متعاقباً اطلاعات تکمیلی در کانال تلگرام بارگذاری خواهد شد.</p>
+          <a href="https://t.me/article_workshop1" class="btn" target="_blank">ورود به کانال تلگرام</a>
         </div>
         </body>
         </html>
@@ -467,18 +647,63 @@ def payment_upload():
         <!DOCTYPE html>
         <html lang="fa" dir="rtl">
         <head>
-        <meta charset="UTF-8" />
+        <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>ثبت‌نام غیر‌فعال</title>
+        <title>پرسشنامه غیر‌فعال</title>
         <style>
-        body { margin: 0; font-family: 'Vazir', sans-serif; background: linear-gradient(135deg,#1e3c72,#2a5298); color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .card { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius: 20px; padding: 2rem; max-width: 480px; width: 90%; box-shadow: 0 8px 20px rgba(0,0,0,0.2); text-align:center; }
-        h1 { font-size: 1.3rem; color: #ff5c5c; line-height: 1.8; }
+        body { 
+            margin: 0; 
+            font-family: 'Vazir', sans-serif; 
+            background: linear-gradient(135deg,#1e3c72,#2a5298); 
+            color: #fff; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+        }
+        .card { 
+            background: rgba(255,255,255,0.1); 
+            backdrop-filter: blur(10px); 
+            border-radius: 20px; 
+            padding: 2rem; 
+            max-width: 480px; 
+            width: 90%; 
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2); 
+            text-align: center; 
+        }
+        h1 { 
+            font-size: 1.4rem; 
+            color: #ff5c5c;  /* رنگ قرمز برای پیام اصلی */
+            margin-bottom: 1rem; 
+            line-height: 1.8; 
+        }
+        p { 
+            font-size: 1.1rem; 
+            line-height: 1.8;
+        }
+        a.btn { 
+            display: inline-block; 
+            margin-top: 1.5rem; 
+            background: linear-gradient(90deg,#ffdf5d,#ffb84d); 
+            color: #000; 
+            border: none; 
+            border-radius: 10px; 
+            padding: 0.6rem 1.2rem; 
+            text-decoration: none; 
+            font-weight: bold;
+            transition: all 0.3s ease; 
+        }
+        a.btn:hover { 
+            background: linear-gradient(90deg,#ffd633,#ffa31a); 
+            transform: scale(1.05); 
+        }
         </style>
         </head>
         <body>
         <div class="card">
-          <h1>این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h1>
+          <h1>به علت تکمیل ظرفیت پذیرش، این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h1>
+          <p>متعاقباً اطلاعات تکمیلی در کانال تلگرام بارگذاری خواهد شد.</p>
+          <a href="https://t.me/article_workshop1" class="btn" target="_blank">ورود به کانال تلگرام</a>
         </div>
         </body>
         </html>
@@ -527,18 +752,63 @@ def thanks():
         <!DOCTYPE html>
         <html lang="fa" dir="rtl">
         <head>
-        <meta charset="UTF-8" />
+        <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>ثبت‌نام غیر‌فعال</title>
+        <title>پرسشنامه غیر‌فعال</title>
         <style>
-        body { margin: 0; font-family: 'Vazir', sans-serif; background: linear-gradient(135deg,#1e3c72,#2a5298); color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .card { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius: 20px; padding: 2rem; max-width: 480px; width: 90%; box-shadow: 0 8px 20px rgba(0,0,0,0.2); text-align:center; }
-        h1 { font-size: 1.3rem; color: #ff5c5c; line-height: 1.8; }
+        body { 
+            margin: 0; 
+            font-family: 'Vazir', sans-serif; 
+            background: linear-gradient(135deg,#1e3c72,#2a5298); 
+            color: #fff; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+        }
+        .card { 
+            background: rgba(255,255,255,0.1); 
+            backdrop-filter: blur(10px); 
+            border-radius: 20px; 
+            padding: 2rem; 
+            max-width: 480px; 
+            width: 90%; 
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2); 
+            text-align: center; 
+        }
+        h1 { 
+            font-size: 1.4rem; 
+            color: #ff5c5c;  /* رنگ قرمز برای پیام اصلی */
+            margin-bottom: 1rem; 
+            line-height: 1.8; 
+        }
+        p { 
+            font-size: 1.1rem; 
+            line-height: 1.8;
+        }
+        a.btn { 
+            display: inline-block; 
+            margin-top: 1.5rem; 
+            background: linear-gradient(90deg,#ffdf5d,#ffb84d); 
+            color: #000; 
+            border: none; 
+            border-radius: 10px; 
+            padding: 0.6rem 1.2rem; 
+            text-decoration: none; 
+            font-weight: bold;
+            transition: all 0.3s ease; 
+        }
+        a.btn:hover { 
+            background: linear-gradient(90deg,#ffd633,#ffa31a); 
+            transform: scale(1.05); 
+        }
         </style>
         </head>
         <body>
         <div class="card">
-          <h1>این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h1>
+          <h1>به علت تکمیل ظرفیت پذیرش، این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h1>
+          <p>متعاقباً اطلاعات تکمیلی در کانال تلگرام بارگذاری خواهد شد.</p>
+          <a href="https://t.me/article_workshop1" class="btn" target="_blank">ورود به کانال تلگرام</a>
         </div>
         </body>
         </html>
@@ -1288,6 +1558,7 @@ if __name__ == "__main__":
     # در محیط تولید (Production)، بهتر است از طریق gunicorn یا مشابه آن اجرا شود.
     # در محیط توسعه، این خط اجرا می‌شود:
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+
 
 
 
