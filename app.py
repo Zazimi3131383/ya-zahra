@@ -325,6 +325,9 @@ def index():
 
 @app.route("/start_form", methods=["POST"])
 def start_form():
+    if not FORM_ACTIVE:
+        return '<h3 style="text-align:center;color:red;margin-top:50px;">این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h3>'
+
     """شروع فرآیند ثبت نام و هدایت به فرم"""
     session.clear()
     session["step"] = "form"  # مرحله اول شروع شد
@@ -332,6 +335,9 @@ def start_form():
     
 @app.route("/form", methods=["GET", "POST"])
 def form_page():
+    if not FORM_ACTIVE:
+        return '<h3 style="text-align:center;color:red;margin-top:50px;">این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h3>'
+
     """فرم ثبت نام"""
     # جلوگیری از ورود مستقیم (فقط اگر از start_form آمده باشد)
     if session.get("step") != "form":
@@ -348,6 +354,9 @@ def form_page():
 
 @app.route("/certificate", methods=["GET", "POST"])
 def certificate_choice():
+    if not FORM_ACTIVE:
+        return '<h3 style="text-align:center;color:red;margin-top:50px;">این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h3>'
+
     """انتخاب گزینه گواهی و هدایت به مرحله بعد"""
     # جلوگیری از ورود مستقیم یا رفرش
     if session.get("step") != "certificate":
@@ -377,6 +386,9 @@ def certificate_choice():
 
 @app.route("/payment_upload", methods=["GET", "POST"])
 def payment_upload():
+    if not FORM_ACTIVE:
+        return '<h3 style="text-align:center;color:red;margin-top:50px;">این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h3>'
+
     """آپلود رسید پرداخت"""
     if session.get("step") != "payment":
         return redirect("/")
@@ -415,6 +427,9 @@ def payment_upload():
 
 @app.route("/thanks", methods=["GET"])
 def thanks():
+    if not FORM_ACTIVE:
+        return '<h3 style="text-align:center;color:red;margin-top:50px;">این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h3>'
+
     """صفحه تشکر نهایی"""
     if session.get("step") not in [None, "done"]:
         return redirect("/")
@@ -1159,6 +1174,7 @@ if __name__ == "__main__":
     # در محیط تولید (Production)، بهتر است از طریق gunicorn یا مشابه آن اجرا شود.
     # در محیط توسعه، این خط اجرا می‌شود:
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+
 
 
 
