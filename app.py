@@ -310,7 +310,7 @@ def save_to_csv(final_dict):
         )
 
 # ---------------- Routes -----------------
-FORM_ACTIVE = True
+FORM_ACTIVE = False
 
 
 @app.route("/", methods=["GET"])
@@ -1558,6 +1558,7 @@ if __name__ == "__main__":
     # در محیط تولید (Production)، بهتر است از طریق gunicorn یا مشابه آن اجرا شود.
     # در محیط توسعه، این خط اجرا می‌شود:
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+
 
 
 
