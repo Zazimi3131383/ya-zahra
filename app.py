@@ -316,7 +316,28 @@ FORM_ACTIVE = False
 @app.route("/", methods=["GET"])
 def index():
     if not FORM_ACTIVE:
-        return '<h3 style="text-align:center;color:red;margin-top:50px;">این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h3>'
+        return '''
+        <div style="
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            height:100vh;
+            background: rgba(0, 123, 255, 0.1); /* پس‌زمینه آبی روشن */
+            backdrop-filter: blur(10px);       /* افکت شیشه‌ای */
+        ">
+            <h3 style="
+                color: #007bff;                  /* رنگ آبی */
+                font-family: Arial, sans-serif;
+                text-align: center;
+                padding: 20px;
+                border-radius: 15px;
+                background: rgba(255, 255, 255, 0.2);
+                box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            ">
+                این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد
+            </h3>
+        </div>
+        '''
     
     """صفحه قوانین و شروع ثبت نام"""
     # پاک کردن سشن در شروع
@@ -1174,6 +1195,7 @@ if __name__ == "__main__":
     # در محیط تولید (Production)، بهتر است از طریق gunicorn یا مشابه آن اجرا شود.
     # در محیط توسعه، این خط اجرا می‌شود:
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+
 
 
 
