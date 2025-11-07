@@ -831,7 +831,19 @@ def admin_panel():
             rows = list(csv.DictReader(f))
     
     # render_template_string به جای render_template برای سازگاری با محیط
-    return render_template_string(admin_html, rows=rows, headers=PERSIAN_HEADERS)
+    # ! ارسال وضعیت فعلی فرم به قالب
+    return render_template_string(admin_html, rows=rows, headers=PERSIAN_HEADERS, form_active=FORM_ACTIVE)
+
+# ! --- روت جدید برای تغییر وضعیت فرم ---
+@app.route("/admin/toggle_form", methods=["POST"])
+@requires_auth
+def admin_toggle_form():
+    """تغییر وضعیت فعال/غیرفعال بودن فرم"""
+    global FORM_ACTIVE
+    FORM_ACTIVE = not FORM_ACTIVE
+    print(f"--- وضعیت فرم به {FORM_ACTIVE} تغییر کرد ---")
+    return redirect("/admin")
+# ! --- پایان روت جدید ---
 
 @app.route("/uploads/<filename>")
 @requires_auth
@@ -1356,6 +1368,35 @@ body {
 }
 h3 { text-align:center; margin-bottom:1.5rem; color:#1e3c72; } /* رنگ عنوان تیره شد */
 
+/* ! --- استایل دکمه فعال/غیرفعال‌سازی --- */
+.form-status-container {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+.form-status-container p {
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+.status-active {
+    color: #198754; /* Green */
+}
+.status-inactive {
+    color: #dc3545; /* Red */
+}
+.form-status-container .btn {
+    width: 100%;
+    max-width: 400px;
+    margin-top: 0.5rem;
+    font-weight: bold;
+}
+/* ! --- پایان استایل --- */
+
+
 /* استایل دکمه‌های دانلود */
 .btn-download {
     background: linear-gradient(90deg,#ffdf5d,#ffb84d);  
@@ -1409,6 +1450,25 @@ a.receipt-link:hover {
 <body>
 <div class="card">
 <h3>پنل مدیریت</h3>
+
+<!-- ! --- دکمه فعال/غیرفعال‌سازی --- -->
+<div class="form-status-container">
+    {% if form_active %}
+        <p>وضعیت فرم: <span class="status-active">فعال (باز)</span></p>
+        <form action="/admin/toggle_form" method="POST">
+            <button type="submit" class="btn btn-warning">غیرفعال کردن فرم (بستن ثبت‌نام)</button>
+        </form>
+    {% else %}
+        <p>وضعیت فرم: <span class="status-inactive">غیرفعال (بسته)</span></p>
+        <form action="/admin/toggle_form" method="POST">
+            <button type="submit" class="btn btn-success">فعال کردن فرم (باز کردن ثبت‌نام)</button>
+        </form>
+    {% endif %}
+</div>
+<hr>
+<!-- ! --- پایان دکمه --- -->
+
+
 <a href="/download_csv" class="btn-download">دانلود کل CSV</a>
 <!-- دکمه‌های فیلتر -->
 <a href="/download_csv_filtered?certificate=خواهان گواهی هستم (50 هزار تومان)" class="btn-download" style="background: #28a745; color: white;">دانلود CSV (فقط با گواهی)</a>
