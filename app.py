@@ -340,8 +340,8 @@ def payment_upload():
             print("❌ خطا در ارسال به تلگرام:", e)
             return Response("خطا در ارسال فیش. لطفاً فایل دیگری را امتحان کنید.", status=500)
 
-        session.clear()
-        return Response("ثبت نهایی موفق", status=200)
+        session.clear() # پاک کردن اطلاعات سشن برای امنیت
+        return redirect("/thanks") # هدایت کاربر به صفحه تشکر
 
     return render_template_string(payment_upload_html)
 
@@ -1074,4 +1074,5 @@ button:hover { background:linear-gradient(90deg,#218838,#1e7e34); transform:scal
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+
 
