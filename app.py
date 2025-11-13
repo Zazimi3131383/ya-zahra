@@ -34,7 +34,7 @@ app = Flask(__name__)
 # اگر متغیر محیطی تنظیم نشده باشد، از مقداری که کاربر در درخواست فرستاده بود استفاده می‌شود (فقط برای تست).
 SECRET_KEY = os.environ.get("SECRET_KEY")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID") # ! این متغیر برای شناسایی ادمین استفاده می‌شود
 
 # تنظیم کلید مخفی Flask
 app.secret_key = SECRET_KEY
@@ -65,7 +65,10 @@ YOUR_CARD_NAME = os.environ.get("YOUR_CARD_NAME")
 RAW_CARD_NUMBER = os.environ.get("YOUR_CARD_NUMBER")
 
 # فرمت کردن شماره کارت (62861872975239 -> 6286-1872-9752-39)
-YOUR_CARD_NUMBER_DISPLAY = "-".join([RAW_CARD_NUMBER[i:i+4] for i in range(0, len(RAW_CARD_NUMBER), 4)])
+if RAW_CARD_NUMBER:
+    YOUR_CARD_NUMBER_DISPLAY = "-".join([RAW_CARD_NUMBER[i:i+4] for i in range(0, len(RAW_CARD_NUMBER), 4)])
+else:
+    YOUR_CARD_NUMBER_DISPLAY = "XXXX-XXXX-XXXX-XXXX" # مقدار پیش‌فرض اگر تنظیم نشده باشد
 
 # ! ستون جدید "فیش واریزی" اضافه شد
 PERSIAN_HEADERS = [
@@ -310,6 +313,7 @@ def save_to_csv(final_dict):
         )
 
 # ---------------- Routes -----------------
+# ! وضعیت فرم به صورت پیش‌فرض غیرفعال است و توسط ادمین (از طریق وب یا تلگرام) فعال می‌شود
 FORM_ACTIVE = False
 
 
@@ -719,10 +723,12 @@ def payment_upload():
         if not file or file.filename == "":
             return Response("خطا در ارسال فیش. لطفاً فایل دیگری را امتحان کنید.", status=400)
 
-        os.makedirs("uploads", exist_ok=True)
-        filename = file.filename
+        # استفاده از UPLOAD_FOLDER تعریف شده در بالا (که می‌تواند دائمی یا موقت باشد)
+        # os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True) # این خط در بالا انجام شده
+        
+        filename = secure_filename(file.filename) # ! امن‌سازی نام فایل
         unique_filename = f"{int(time.time())}_{filename}"
-        filepath = os.path.join("uploads", unique_filename)
+        filepath = os.path.join(app.config["UPLOAD_FOLDER"], unique_filename)
 
         try:
             file.save(filepath)
@@ -737,86 +743,33 @@ def payment_upload():
             send_to_telegram(final_data, receipt_filepath=filepath)
         except Exception as e:
             print("❌ خطا در ارسال به تلگرام:", e)
+            # ! در صورت خطا، فایل ذخیره شده را پاک نکنیم تا ادمین بتواند دستی بررسی کند
             return Response("خطا در ارسال فیش. لطفاً فایل دیگری را امتحان کنید.", status=500)
 
         session.clear()
         return Response("ثبت نهایی موفق", status=200)
 
-    return render_template_string(payment_upload_html)
+    # ! ارسال متغیرها به قالب HTML
+    return render_template_string(
+        payment_upload_html,
+        YOUR_CARD_NUMBER_DISPLAY=YOUR_CARD_NUMBER_DISPLAY,
+        YOUR_CARD_NAME=YOUR_CARD_NAME,
+        RAW_CARD_NUMBER=RAW_CARD_NUMBER
+    )
 
 
 @app.route("/thanks", methods=["GET"])
 def thanks():
-    if not FORM_ACTIVE:
-        return """
-        <!DOCTYPE html>
-        <html lang="fa" dir="rtl">
-        <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>پرسشنامه غیر‌فعال</title>
-        <style>
-        body { 
-            margin: 0; 
-            font-family: 'Vazir', sans-serif; 
-            background: linear-gradient(135deg,#1e3c72,#2a5298); 
-            color: #fff; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            min-height: 100vh; 
-        }
-        .card { 
-            background: rgba(255,255,255,0.1); 
-            backdrop-filter: blur(10px); 
-            border-radius: 20px; 
-            padding: 2rem; 
-            max-width: 480px; 
-            width: 90%; 
-            box-shadow: 0 8px 20px rgba(0,0,0,0.2); 
-            text-align: center; 
-        }
-        h1 { 
-            font-size: 1.4rem; 
-            color: #ff5c5c;  /* رنگ قرمز برای پیام اصلی */
-            margin-bottom: 1rem; 
-            line-height: 1.8; 
-        }
-        p { 
-            font-size: 1.1rem; 
-            line-height: 1.8;
-        }
-        a.btn { 
-            display: inline-block; 
-            margin-top: 1.5rem; 
-            background: linear-gradient(90deg,#ffdf5d,#ffb84d); 
-            color: #000; 
-            border: none; 
-            border-radius: 10px; 
-            padding: 0.6rem 1.2rem; 
-            text-decoration: none; 
-            font-weight: bold;
-            transition: all 0.3s ease; 
-        }
-        a.btn:hover { 
-            background: linear-gradient(90deg,#ffd633,#ffa31a); 
-            transform: scale(1.05); 
-        }
-        </style>
-        </head>
-        <body>
-        <div class="card">
-          <h1>به علت تکمیل ظرفیت پذیرش، این پرسشنامه غیر‌فعال است و امکان ثبت پاسخ ندارد</h1>
-          <p>متعاقباً اطلاعات تکمیلی در کانال تلگرام بارگذاری خواهد شد.</p>
-          <a href="https://t.me/article_workshop1" class="btn" target="_blank">ورود به کانال تلگرام</a>
-        </div>
-        </body>
-        </html>
-        """
+    # ! صفحه تشکر همیشه باید فعال باشد، حتی اگر فرم بسته شده باشد
+    # if not FORM_ACTIVE: ... (این بخش حذف شد)
 
     """صفحه تشکر نهایی"""
     if session.get("step") not in [None, "done"]:
-        return redirect("/")
+        # اگر کاربر در وسط ثبت نام بوده و فرم بسته شده، ممکن است به اینجا برسد
+        # اما اگر مستقیم به /thanks بیاید، اوکی است
+        pass
+        
+    session.clear() # ! پاک کردن سشن در صفحه تشکر
     return render_template_string(thanks_html)
 
 # ---------------- Admin Routes -----------------
@@ -841,7 +794,16 @@ def admin_toggle_form():
     """تغییر وضعیت فعال/غیرفعال بودن فرم"""
     global FORM_ACTIVE
     FORM_ACTIVE = not FORM_ACTIVE
-    print(f"--- وضعیت فرم به {FORM_ACTIVE} تغییر کرد ---")
+    print(f"--- وضعیت فرم توسط ادمین وب به {FORM_ACTIVE} تغییر کرد ---")
+    
+    # ! اطلاع‌رسانی به ادمین در تلگرام (اختیاری)
+    try:
+        admin_chat_id = int(TELEGRAM_CHAT_ID)
+        status_text = "فعال ✅" if FORM_ACTIVE else "غیرفعال ⛔️"
+        send_admin_reply(admin_chat_id, f"وضعیت سایت توسط پنل *وب* به *{status_text}* تغییر یافت.")
+    except Exception as e:
+        print(f"خطا در اطلاع رسانی تلگرام: {e}")
+        
     return redirect("/admin")
 # ! --- پایان روت جدید ---
 
@@ -885,6 +847,9 @@ def download_csv_filtered():
     temp_csv_filename = f"registrations_filtered_{filter_value.replace(' ', '_').replace('(50_هزار_تومان)', 'certified').replace('(رایگان)', 'free')}.csv"
     temp_csv_path = os.path.join(app.config["UPLOAD_FOLDER"], temp_csv_filename)
     
+    # ! اطمینان از وجود پوشه UPLOAD_FOLDER (مخصوصا برای دانلود)
+    os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+    
     with open(temp_csv_path, "w", newline="", encoding="utf-8-sig") as f:
         writer = csv.DictWriter(f, fieldnames=PERSIAN_HEADERS)
         writer.writeheader()
@@ -913,7 +878,11 @@ def admin_delete(index):
         if receipt_file:
             filepath = os.path.join(app.config["UPLOAD_FOLDER"], receipt_file)
             if os.path.exists(filepath):
-                os.remove(filepath)
+                try:
+                    os.remove(filepath)
+                    print(f"فایل {filepath} با موفقیت حذف شد.")
+                except Exception as e:
+                    print(f"خطا در حذف فایل {filepath}: {e}")
 
         # بازنویسی کامل فایل CSV
         with open(CSV_FILE, "w", newline="", encoding="utf-8-sig") as f:
@@ -1098,7 +1067,7 @@ no.addEventListener('change',()=>document.getElementById('paymentInfo').style.di
 """
 
 # --- ! صفحه جدید برای پرداخت و آپلود با نوار پیشرفت ---
-payment_upload_html = f"""
+payment_upload_html = """
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
@@ -1106,11 +1075,11 @@ payment_upload_html = f"""
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>پرداخت و آپلود فیش</title>
 <style>
-body {{ margin:0; font-family:'Vazir',sans-serif; background:linear-gradient(135deg,#1e3c72,#2a5298); color:#fff; display:flex; justify-content:center; align-items:center; min-height:100vh; }}
-.card {{ background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius:20px; padding:2rem; max-width:480px; width:90%; box-shadow:0 8px 20px rgba(0,0,0,0.2); }}
-h1 {{ text-align:center; font-size:1.3rem; margin-bottom:1rem; color:#ffdf5d; }}
-p {{ text-align:center; }}
-.card-number-box {{
+body { margin:0; font-family:'Vazir',sans-serif; background:linear-gradient(135deg,#1e3c72,#2a5298); color:#fff; display:flex; justify-content:center; align-items:center; min-height:100vh; }
+.card { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius:20px; padding:2rem; max-width:480px; width:90%; box-shadow:0 8px 20px rgba(0,0,0,0.2); }
+h1 { text-align:center; font-size:1.3rem; margin-bottom:1rem; color:#ffdf5d; }
+p { text-align:center; }
+.card-number-box {
     /* ! شماره کارت به صورت انگلیسی نمایش داده می‌شود */
     direction: ltr;  
     font-family: monospace, sans-serif;
@@ -1123,11 +1092,11 @@ p {{ text-align:center; }}
     cursor: pointer;
     margin-bottom: 1rem;
     transition: all 0.3s ease;
-}}
-.card-number-box:hover {{ background: rgba(255,255,255,0.3); }}
+}
+.card-number-box:hover { background: rgba(255,255,255,0.3); }
 
 /* ! استایل برای نام صاحب کارت */
-.card-name {{
+.card-name {
     direction: rtl; /* نام فارسی به درستی نمایش داده شود */
     font-family:'Vazir',sans-serif;
     font-size: 0.9rem;
@@ -1135,13 +1104,13 @@ p {{ text-align:center; }}
     margin-top: 0.5rem;
     color: #fff;
     opacity: 0.9;
-}}
+}
 
-#copyMessage {{ text-align:center; color:#ffdf5d; font-size:0.9rem; visibility:hidden; }}
-#errorMessage {{ text-align:center; color:#ff6b6b; font-size:0.9rem; margin-top: 1rem; display: none; }}
+#copyMessage { text-align:center; color:#ffdf5d; font-size:0.9rem; visibility:hidden; }
+#errorMessage { text-align:center; color:#ff6b6b; font-size:0.9rem; margin-top: 1rem; display: none; }
 
-label {{ display:block; margin: 1rem 0 0.3rem; }}
-input[type="file"] {{ 
+label { display:block; margin: 1rem 0 0.3rem; }
+input[type="file"] { 
     width: 100%;  
     padding: 0.5rem;  
     border-radius: 8px;  
@@ -1149,28 +1118,28 @@ input[type="file"] {{
     box-sizing: border-box;
     background: rgba(255,255,255,0.8);
     color: #000;
-}}
+}
 
 /* ! نوار پیشرفت */
-#uploadProgress {{
+#uploadProgress {
     margin-top: 1.5rem;
-}}
-#progressContainer {{
+}
+#progressContainer {
     background-color: rgba(255,255,255,0.3);  
     border-radius: 5px;  
     height: 10px;
     overflow: hidden;
-}}
-#progressBar {{
+}
+#progressBar {
     width: 0%;  
     height: 100%;  
     border-radius: 5px;  
     background-color: #ffdf5d;  
     transition: width 0.3s ease;
-}}
+}
 
-button {{ display:block; width:100%; margin-top: 1.5rem; background:linear-gradient(90deg,#ffdf5d,#ffb84d); color:#000; border:none; border-radius:10px; padding:0.7rem; cursor:pointer; transition:all 0.3s ease; }}
-button:hover {{ background:linear-gradient(90deg,#ffd633,#ffa31a); transform:scale(1.05); }}
+button { display:block; width:100%; margin-top: 1.5rem; background:linear-gradient(90deg,#ffdf5d,#ffb84d); color:#000; border:none; border-radius:10px; padding:0.7rem; cursor:pointer; transition:all 0.3s ease; }
+button:hover { background:linear-gradient(90deg,#ffd633,#ffa31a); transform:scale(1.05); }
 </style>
 </head>
 <body>
@@ -1178,8 +1147,8 @@ button:hover {{ background:linear-gradient(90deg,#ffd633,#ffa31a); transform:sca
 <h1>پرداخت و بارگذاری فیش</h1>
 <p>لطفاً مبلغ ۵۰ هزار تومان را به شماره کارت زیر واریز نمایید:</p>
 <div id="cardNumber" class="card-number-box" onclick="copyCardNumber()">
-    {YOUR_CARD_NUMBER_DISPLAY}
-    <div class="card-name">به نام: {YOUR_CARD_NAME}</div> <!-- ! نام صاحب کارت از متغیر محیطی -->
+    {{ YOUR_CARD_NUMBER_DISPLAY }}
+    <div class="card-name">به نام: {{ YOUR_CARD_NAME }}</div> <!-- ! نام صاحب کارت از متغیر محیطی -->
 </div>
 <p id="copyMessage">شماره کارت کپی شد!</p>
 <p>سپس، تصویر فیش واریزی خود را بارگذاری کنید.</p>
@@ -1201,25 +1170,25 @@ button:hover {{ background:linear-gradient(90deg,#ffd633,#ffa31a); transform:sca
 </form>
 </div>
 <script>
-function copyCardNumber() {{
-    const cardNumber = "{RAW_CARD_NUMBER}";  
+function copyCardNumber() {
+    const cardNumber = "{{ RAW_CARD_NUMBER }}";  
     
     // اگر مرورگر از navigator.clipboard پشتیبانی نکرد، از document.execCommand استفاده کنید.
-    if (navigator.clipboard) {{
-        navigator.clipboard.writeText(cardNumber).then(() => {{
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(cardNumber).then(() => {
             const msg = document.getElementById('copyMessage');
             msg.style.visibility = 'visible';
-            setTimeout(() => {{ msg.style.visibility = 'hidden'; }}, 2000);
-        }}, (err) => {{
+            setTimeout(() => { msg.style.visibility = 'hidden'; }, 2000);
+        }, (err) => {
             console.error('خطا در کپی (clipboard API): ', err);
             fallbackCopy(cardNumber);
-        }});
-    }} else {{
+        });
+    } else {
         fallbackCopy(cardNumber);
-    }}
-}}
+    }
+}
 
-function fallbackCopy(text) {{
+function fallbackCopy(text) {
     const textarea = document.createElement('textarea');
     textarea.value = text;
     textarea.style.position = 'fixed';
@@ -1227,22 +1196,22 @@ function fallbackCopy(text) {{
     document.body.appendChild(textarea);
     textarea.focus();
     textarea.select();
-    try {{
+    try {
         // استفاده از execCommand برای کپی
         document.execCommand('copy');
         const msg = document.getElementById('copyMessage');
         msg.innerText = 'شماره کارت کپی شد (فال‌بک)!';
         msg.style.visibility = 'visible';
-        setTimeout(() => {{ msg.style.visibility = 'hidden'; }}, 2000);
-    }} catch (err) {{
+        setTimeout(() => { msg.style.visibility = 'hidden'; }, 2000);
+    } catch (err) {
         console.error('Fallback copy failed: ', err);
-    }}
+    }
     document.body.removeChild(textarea);
-}}
+}
 
 
 // ! منطق ارسال AJAX برای نمایش نوار پیشرفت
-document.getElementById('receiptForm').addEventListener('submit', function(e) {{
+document.getElementById('receiptForm').addEventListener('submit', function(e) {
     e.preventDefault(); 
     
     const form = e.target;
@@ -1264,22 +1233,22 @@ document.getElementById('receiptForm').addEventListener('submit', function(e) {{
     const xhr = new XMLHttpRequest();
 
     // ردیابی پیشرفت آپلود
-    xhr.upload.onprogress = function(event) {{
-        if (event.lengthComputable) {{
+    xhr.upload.onprogress = function(event) {
+        if (event.lengthComputable) {
             const percentComplete = (event.loaded / event.total) * 100;
             progressBar.style.width = percentComplete.toFixed(0) + '%';
             progressPercent.innerText = percentComplete.toFixed(0) + '%';
-        }}
-    }}
+        }
+    }
     // پاسخ نهایی
-    xhr.onload = function() {{
+    xhr.onload = function() {
         // پس از اتمام آپلود، نوار را کامل کن
         progressBar.style.width = '100%';
         
-        if (xhr.status === 200) {{
+        if (xhr.status === 200) {
             // پاسخ 200 نشان دهنده موفقیت و نیاز به ریدایرکت است.
             window.location.href = '/thanks'; 
-        }} else {{
+        } else {
             // نمایش خطا در صورت عدم موفقیت
             console.error('Upload failed with status:', xhr.status, xhr.responseText);
             errorMessage.style.display = 'block';
@@ -1288,11 +1257,11 @@ document.getElementById('receiptForm').addEventListener('submit', function(e) {{
             submitButton.disabled = false;
             submitButton.innerText = 'ثبت نهایی و ارسال فیش';
             uploadProgress.style.display = 'none';
-        }}
+        }
     }};
 
     // رسیدگی به خطاهای شبکه
-    xhr.onerror = function() {{
+    xhr.onerror = function() {
         console.error('Network error during upload.');
         errorMessage.style.display = 'block';
 
@@ -1613,6 +1582,135 @@ button:hover { background:linear-gradient(90deg,#218838,#1e7e34); transform:scal
 </body>
 </html>
 """
+
+
+# ---------------- توابع جدید برای مدیریت ادمین از تلگرام -----------------
+
+def send_admin_reply(chat_id, text, keyboard=None):
+    """
+    (جدید) ارسال پاسخ به ادمین (با یا بدون کیبورد)
+    """
+    bot_token = TELEGRAM_BOT_TOKEN
+    if not bot_token or bot_token == 'default_token':
+        print("توکن تلگرام تنظیم نشده است.")
+        return
+
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    payload = {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "Markdown" # استفاده از مارک‌داون برای *bold* کردن
+    }
+    if keyboard:
+        payload["reply_markup"] = json.dumps(keyboard)
+    
+    try:
+        resp = requests.post(url, data=payload)
+        if resp.status_code != 200:
+            print(f"خطا در ارسال پاسخ به ادمین: {resp.text}")
+    except Exception as e:
+        print(f"استثنا در ارسال پاسخ به ادمین: {e}")
+
+def get_admin_keyboard():
+    """
+    (جدید) ساخت کیبورد اختصاصی ادمین
+    """
+    keyboard = {
+        "keyboard": [
+            [{"text": "✅ فعال کردن سایت"}],
+            [{"text": "⛔️ غیرفعال کردن سایت"}]
+        ],
+        "resize_keyboard": True,
+        "one_time_keyboard": False # کیبورد دائمی باشد
+    }
+    return keyboard
+
+# ---------------- روت جدید وب‌هوک تلگرام -----------------
+
+@app.route(f"/webhook/{TELEGRAM_BOT_TOKEN}", methods=["POST"])
+def telegram_webhook():
+    """
+    (جدید) این روت وب‌هوک تلگرام است.
+    تلگرام آپدیت‌ها را به این آدرس POST می‌کند.
+    باید آدرس وب‌هوک ربات خود را روی این روت تنظیم کنید.
+    مثال: https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://<YOUR_DOMAIN>/webhook/<TOKEN>
+    """
+    global FORM_ACTIVE
+    
+    # اطمینان از اینکه توکن معتبر است
+    bot_token = TELEGRAM_BOT_TOKEN
+    if not bot_token or bot_token == 'default_token':
+        return "Webhook OK", 200 # توکن تنظیم نشده، پاسخی نده
+
+    try:
+        data = request.get_json()
+        
+        # ما فقط به 'message' و 'text' آن اهمیت می‌دهیم
+        if "message" not in data:
+            return "Webhook OK", 200
+
+        message = data["message"]
+        chat_id = message["chat"]["id"]
+        text = message.get("text", "")
+
+        # --- بخش حیاتی: بررسی ادمین ---
+        # فقط به ادمین تعریف شده در TELEGRAM_CHAT_ID پاسخ بده
+        admin_chat_id = 0
+        try:
+            admin_chat_id = int(TELEGRAM_CHAT_ID)
+        except (ValueError, TypeError):
+            print("TELEGRAM_CHAT_ID به درستی تنظیم نشده است.")
+            return "Webhook OK", 200 # ادمین تعریف نشده
+
+        if chat_id != admin_chat_id:
+            # اگر پیام از طرف ادمین نیست، نادیده بگیر
+            print(f"پیام از chat_id ناشناس دریافت شد: {chat_id}")
+            return "Webhook OK", 200
+
+        # --- پردازش دستورات ادمین ---
+        
+        current_status = "فعال ✅" if FORM_ACTIVE else "غیرفعال ⛔️"
+        
+        if text == "/start" or text == "/admin":
+            # ارسال کیبورد و وضعیت فعلی
+            keyboard = get_admin_keyboard()
+            reply_text = f"سلام ادمین. به پنل مدیریت تلگرام خوش آمدید.\n\n"
+            reply_text += f"وضعیت فعلی سایت: *{current_status}*\n\n"
+            reply_text += "از کیبورد زیر برای تغییر وضعیت استفاده کنید:"
+            send_admin_reply(chat_id, reply_text, keyboard)
+
+        elif text == "✅ فعال کردن سایت":
+            if FORM_ACTIVE:
+                send_admin_reply(chat_id, f"سایت از قبل *فعال* بود. (وضعیت فعلی: {current_status})")
+            else:
+                FORM_ACTIVE = True
+                print(f"--- وضعیت فرم توسط ادمین تلگرام به {FORM_ACTIVE} تغییر کرد ---")
+                send_admin_reply(chat_id, f"سایت با موفقیت *فعال* شد. ✅")
+
+        elif text == "⛔️ غیرفعال کردن سایت":
+            if not FORM_ACTIVE:
+                send_admin_reply(chat_id, f"سایت از قبل *غیرفعال* بود. (وضعیت فعلی: {current_status})")
+            else:
+                FORM_ACTIVE = False
+                print(f"--- وضعیت فرم توسط ادمین تلگرام به {FORM_ACTIVE} تغییر کرد ---")
+                send_admin_reply(chat_id, f"سایت با موفقیت *غیرفعال* شد. ⛔️")
+        
+        else:
+            # اگر دستور ناشناس بود، فقط وضعیت فعلی را بفرست
+            send_admin_reply(chat_id, f"دستور '{text}' شناسایی نشد.\nوضعیت فعلی سایت: *{current_status}*")
+
+        return "Webhook OK", 200
+
+    except Exception as e:
+        print(f"خطا در پردازش وب‌هوک: {e}")
+        try:
+            print(f"اطلاعات دریافتی: {request.get_data(as_text=True)}")
+        except:
+            pass
+        return "Error", 500 # به تلگرام بگو که مشکلی بوده
+
+
+# ---------------- اجرای برنامه -----------------
 
 if __name__ == "__main__":
     # در محیط تولید (Production)، بهتر است از طریق gunicorn یا مشابه آن اجرا شود.
