@@ -13,7 +13,8 @@ from flask import (
 # ! توابع تلگرام شما از طریق HTTP Request (requests) کار می‌کنند که برای Flask کافی است.
 # از آنجایی که ممکن است کتابخانه telegram نصب نباشد، از آن در توابعی که فقط به API نیاز دارند استفاده نمی‌کنیم.
 try:
-    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    # ! اضافه شدن کلاس‌های لازم برای کیبورد اختصاصی
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 except ImportError:
     # تعریف کلاس‌های دامی برای جلوگیری از خطا اگر telegram نصب نباشد
     class InlineKeyboardButton:
@@ -21,6 +22,12 @@ except ImportError:
     class InlineKeyboardMarkup:
         def __init__(self, keyboard): self.keyboard = keyboard
         def to_dict(self): return {'inline_keyboard': self.keyboard}
+    # ! تعریف کلاس‌های دامی برای کیبورد اختصاصی (برای سازگاری با توابع)
+    class ReplyKeyboardMarkup:
+        def __init__(self, keyboard, **kwargs): self.keyboard = keyboard
+        def to_dict(self): return {'keyboard': self.keyboard, 'resize_keyboard': True}
+    class KeyboardButton:
+        def __init__(self, text): self.text = text
         
 from functools import wraps
 import csv, os, requests, time
@@ -169,6 +176,39 @@ def send_to_telegram(data, receipt_filepath=None):
         print(f"خطا در ارسال به تلگرام: {e}")
 
 
+# ! --- توابع و کیبورد ادمین تلگرام (جدید) ---
+
+# کیبورد اختصاصی ادمین
+ADMIN_KEYBOARD = ReplyKeyboardMarkup(
+    [[KeyboardButton("/فعال_سازی"), KeyboardButton("/غیرفعال_سازی")]],
+    resize_keyboard=True,
+    one_time_keyboard=False,
+)
+
+def send_telegram_admin_message(chat_id, text, keyboard=None):
+    """ارسال پیام با یا بدون کیبورد اختصاصی به ادمین"""
+    bot_token = TELEGRAM_BOT_TOKEN
+    
+    if not bot_token or bot_token == 'default_token':
+        print("توکن تلگرام تنظیم نشده است!")
+        return
+
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    payload = {
+        "chat_id": chat_id, 
+        "text": text, 
+        "parse_mode": "Markdown",
+    }
+    
+    if keyboard:
+        # استفاده از to_dict برای سازگاری با کلاس دامی (در صورت عدم نصب کتابخانه) و تبدیل به JSON
+        payload["reply_markup"] = json.dumps(keyboard.to_dict()) 
+
+    try:
+        requests.post(url, json=payload)
+    except Exception as e:
+        print(f"خطا در ارسال پیام ادمین تلگرام: {e}")
+        
 # --- توابع ربات تلگرام (بدون تغییر رها شدن) ---
 def send_admin_list(chat_id):
     """
@@ -280,50 +320,6 @@ def handle_callback_query(data, chat_id):
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     requests.post(url, data={"chat_id": chat_id, "text": text})
 
-# ---------------- New Telegram Admin Functions -----------------
-def send_telegram_message(chat_id, text, reply_markup=None):
-    """ ارسال پیام متنی به تلگرام (همراه با قابلیت ارسال کیبورد ریپلای) """
-    bot_token = TELEGRAM_BOT_TOKEN
-    if not bot_token or bot_token == 'default_token':
-        return
-
-    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    payload = {
-        "chat_id": chat_id, 
-        "text": text, 
-        "parse_mode": "Markdown"
-    }
-    if reply_markup:
-        # برای کیبورد ریپلای
-        payload["reply_markup"] = json.dumps(reply_markup) 
-
-    try:
-        resp = requests.post(url, data=payload)
-        if resp.status_code != 200:
-            print("ارسال پیام به تلگرام موفق نبود ❌:", resp.status_code, resp.text)
-    except Exception as e:
-        print(f"خطا در ارسال پیام به تلگرام: {e}")
-
-def send_admin_keyboard(chat_id):
-    """
-    ارسال کیبورد اختصاصی ادمین برای تغییر وضعیت سایت
-    """
-    keyboard = {
-        "keyboard": [
-            [
-                {"text": "🟢 فعال‌سازی سایت"},
-                {"text": "🔴 غیرفعال‌سازی سایت"}
-            ],
-            [
-                 {"text": "وضعیت کنونی"}
-            ]
-        ],
-        "resize_keyboard": True,
-        "one_time_keyboard": False
-    }
-    text = "🚀 پنل مدیریت سایت:\nیکی از گزینه‌های زیر را انتخاب کنید تا وضعیت فرم ثبت‌نام تغییر کند."
-    send_telegram_message(chat_id, text, reply_markup=keyboard)
-# ---------------- End of New Telegram Admin Functions -----------------
 
 # ---------------- Save to CSV (Updated) -----------------
 def save_to_csv(final_dict):
@@ -352,82 +348,6 @@ def save_to_csv(final_dict):
                 ),  # ذخیره نام فایل
             }
         )
-
-# ---------------- Telegram Webhook Route (For Admin Control) -----------------
-@app.route("/telegram_webhook", methods=["POST"])
-def telegram_webhook():
-    global FORM_ACTIVE
-
-    # بررسی تنظیم بودن متغیرهای تلگرام
-    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        return {"status": "error", "message": "Telegram config missing"}, 400
-
-    update = request.get_json()
-    if not update:
-        return {"status": "ok"}, 200 # پاسخ 200 به تلگرام
-
-    # 1. هندل کردن پیام متنی
-    message = update.get("message")
-    if message:
-        # اجباری کردن رشته برای مقایسه
-        chat_id = str(message.get("chat").get("id")) 
-        text = message.get("text", "")
-        
-        # تنها ادمین (بر اساس TELEGRAM_CHAT_ID) مجاز به استفاده از این کنترل‌ها است
-        if chat_id != TELEGRAM_CHAT_ID:
-            print(f"--- پیام از چت نامعتبر: {chat_id} ---")
-            return {"status": "ok"}, 200
-
-        # ارسال کیبورد اصلی ادمین با فرمان /start
-        if text in ["/start", "شروع"]:
-            send_admin_keyboard(chat_id)
-            return {"status": "ok"}, 200
-        
-        # هندل کردن دکمه‌های کیبورد
-        if text == "🟢 فعال‌سازی سایت":
-            FORM_ACTIVE = True
-            status_text = "✅ سایت **فعال** شد و فرم ثبت‌نام قابل دسترسی است."
-            send_telegram_message(chat_id, status_text)
-            print("--- وضعیت فرم از طریق تلگرام: فعال شد ---")
-            return {"status": "ok"}, 200
-        
-        if text == "🔴 غیرفعال‌سازی سایت":
-            FORM_ACTIVE = False
-            status_text = "❌ سایت **غیرفعال** شد و پیام تکمیل ظرفیت نمایش داده می‌شود."
-            send_telegram_message(chat_id, status_text)
-            print("--- وضعیت فرم از طریق تلگرام: غیرفعال شد ---")
-            return {"status": "ok"}, 200
-
-        # نمایش وضعیت فعلی
-        if text == "وضعیت کنونی":
-            status = "فعال" if FORM_ACTIVE else "غیرفعال"
-            status_text = f"وضعیت کنونی سایت: **{status}**"
-            send_telegram_message(chat_id, status_text)
-            return {"status": "ok"}, 200
-            
-    # 2. هندل کردن Callback query (برای دکمه‌های اینلاین قبلی - بدون تغییر)
-    callback_query = update.get("callback_query")
-    if callback_query:
-        # اطمینان از اینکه از پیام تلگرامی معتبر باشد
-        if not callback_query.get("message"):
-            return {"status": "ok"}, 200 
-            
-        chat_id = str(callback_query.get("message").get("chat").get("id"))
-        data = callback_query.get("data")
-        
-        # فقط ادمین مجاز است (برای callback_query ها)
-        if chat_id == TELEGRAM_CHAT_ID:
-            handle_callback_query(data, chat_id)
-        
-        # پاسخ به callback query برای حذف ساعت لودینگ
-        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/answerCallbackQuery"
-        requests.post(url, data={"callback_query_id": callback_query.get("id")})
-        
-        return {"status": "ok"}, 200
-
-    return {"status": "ok"}, 200 # پاسخ 200 به تلگرام برای سایر آپدیت‌ها
-# ---------------- End of Telegram Webhook Route -----------------
-
 
 # ---------------- Routes -----------------
 FORM_ACTIVE = False
@@ -939,37 +859,205 @@ def thanks():
         return redirect("/")
     return render_template_string(thanks_html)
 
-# ---------------- Admin Routes -----------------
+
+# ---------------- Telegram Webhook for Admin Control (جدید) -----------------
+
+@app.route(f"/{SECRET_KEY}", methods=["POST"])
+def telegram_webhook():
+    """
+    دریافت و پردازش آپدیت‌های تلگرام.
+    ما از SECRET_KEY در URL برای ایجاد یک مسیر امن (غیرقابل حدس) استفاده می‌کنیم.
+    """
+    global FORM_ACTIVE # دسترسی به متغیر سراسری
+    
+    if request.method == "POST":
+        update = request.get_json(force=True)
+        message = update.get("message")
+
+        if message:
+            # چت آیدی را به صورت رشته (string) دریافت می‌کنیم
+            chat_id = str(message.get("chat").get("id"))
+            text = message.get("text")
+            
+            # ! فقط به دستوراتی که از چت آیدی ادمین می‌آیند پاسخ می‌دهد
+            if chat_id != TELEGRAM_CHAT_ID:
+                print(f"پیام غیرمجاز از چت آیدی: {chat_id}")
+                # پاسخ 200 برای جلوگیری از تکرار ارسال
+                return "Unauthorized", 200 
+
+            if text == "/start":
+                status_text = "فعال" if FORM_ACTIVE else "غیرفعال"
+                send_telegram_admin_message(
+                    chat_id, 
+                    f"🎉 **پنل کنترل سایت** 🎉\nوضعیت فعلی: **{status_text}**", 
+                    keyboard=ADMIN_KEYBOARD
+                )
+            
+            elif text == "/فعال_سازی":
+                FORM_ACTIVE = True
+                send_telegram_admin_message(
+                    chat_id, 
+                    "✅ **سایت فعال شد.** کاربران می‌توانند ثبت‌نام کنند.", 
+                    keyboard=ADMIN_KEYBOARD
+                )
+            
+            elif text == "/غیرفعال_سازی":
+                FORM_ACTIVE = False
+                send_telegram_admin_message(
+                    chat_id, 
+                    "❌ **سایت غیرفعال شد.** کاربران صفحه غیرفعال‌سازی را خواهند دید.", 
+                    keyboard=ADMIN_KEYBOARD
+                )
+            else:
+                send_telegram_admin_message(
+                    chat_id, 
+                    "دستور نامعتبر است. لطفاً از دکمه‌های کیبورد استفاده کنید یا /start را ارسال کنید.", 
+                    keyboard=ADMIN_KEYBOARD
+                )
+            
+        return "ok", 200
+    
+    return "Method Not Allowed", 405
+
+
+@app.route("/uploads/<filename>")
+def uploaded_file(filename):
+    """سرویس دهی فایل‌های آپلود شده (فیش واریزی)"""
+    return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
+
 
 @app.route("/admin", methods=["GET"])
 @requires_auth
 def admin_panel():
-    """نمایش پنل ادمین و لیست ثبت نام‌ها"""
+    """صفحه پنل ادمین برای مدیریت ثبت‌نام‌ها"""
+    global FORM_ACTIVE # دسترسی به متغیر سراسری
+    
     rows = []
     if os.path.exists(CSV_FILE):
+        # اضافه کردن encoding='utf-8-sig' برای جلوگیری از مشکلات فارسی
         with open(CSV_FILE, "r", encoding="utf-8-sig") as f:
+            # تبدیل به لیست برای قابلیت دسترسی با ایندکس
             rows = list(csv.DictReader(f))
-    
-    # render_template_string به جای render_template برای سازگاری با محیط
-    # ! ارسال وضعیت فعلی فرم به قالب
-    return render_template_string(admin_html, rows=rows, headers=PERSIAN_HEADERS, form_active=FORM_ACTIVE)
 
-# ! --- روت جدید برای تغییر وضعیت فرم ---
-@app.route("/admin/toggle_form", methods=["POST"])
-@requires_auth
-def admin_toggle_form():
-    """تغییر وضعیت فعال/غیرفعال بودن فرم"""
-    global FORM_ACTIVE
-    FORM_ACTIVE = not FORM_ACTIVE
-    print(f"--- وضعیت فرم به {FORM_ACTIVE} تغییر کرد ---")
-    return redirect("/admin")
-# ! --- پایان روت جدید ---
+    # ساختار HTML برای نمایش پنل ادمین
+    admin_html = f"""
+    <!DOCTYPE html>
+    <html lang="fa" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>پنل ادمین</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link href="https://cdn.datatables.net/2.0.8/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+        <style>
+        body {{ margin:0; font-family:'Vazir', sans-serif; background:linear-gradient(135deg,#1e3c72,#2a5298); color:#fff; padding-top: 40px; padding-bottom: 40px; min-height: 100vh; }}
+        .card {{ background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-radius:20px; padding:2rem; max-width: 1200px; /* افزایش عرض برای جدول */ width: 95%; margin: auto; box-shadow:0 8px 20px rgba(0,0,0,0.2); color: #333; /* رنگ متن داخل کارت تیره شد */ }}
+        h3 {{ text-align:center; margin-bottom:1.5rem; color:#1e3c72; }} /* رنگ عنوان تیره شد */
+        /* ! --- استایل دکمه فعال/غیرفعال‌سازی --- */
+        .form-status-container {{ background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 10px; padding: 1rem; margin-bottom: 1.5rem; text-align: center; }}
+        .form-status-container p {{ font-size: 1.1rem; font-weight: bold; margin-bottom: 0.5rem; }}
+        .status-active {{ color: #198754; /* Green */ }}
+        .status-inactive {{ color: #dc3545; /* Red */ }}
+        .form-status-container .btn {{ width: 100%; max-width: 400px; margin-top: 0.5rem; font-weight: bold; }}
+        /* ! --- پایان استایل --- */
+        /* استایل دکمه‌های دانلود */
+        .btn-download {{ background: linear-gradient(90deg,#ffdf5d,#ffb84d); color:#000; border:none; border-radius:10px; padding:0.5rem 1rem; text-decoration:none; transition: all 0.3s ease; margin-bottom: 1rem; display: inline-block; }}
+        .btn-download:hover {{ background: linear-gradient(90deg,#ffd633,#ffa31a); transform:scale(1.05); color: #000; }}
+        /* استایل DataTables */
+        table.dataTable {{ width: 100% !important; }}
+        </style>
+    </head>
+    <body>
+    <div class="card">
+        <h3>پنل مدیریت ثبت‌نام‌ها</h3>
 
-@app.route("/uploads/<filename>")
+        <div class="form-status-container">
+            <p>وضعیت ثبت‌نام: 
+            <span class="{'status-active' if FORM_ACTIVE else 'status-inactive'}">
+            {'فعال' if FORM_ACTIVE else 'غیرفعال'}
+            </span>
+            </p>
+            <p style="font-size: 0.9rem; margin-top: 0.5rem;">برای تغییر وضعیت از ربات تلگرام استفاده کنید: 
+            <code>/start</code>
+            </p>
+        </div>
+        <a href="/download_csv" class="btn-download">دانلود فایل CSV کامل</a>
+        <a href="/download_csv_filtered?certificate=خواهان گواهی هستم (50 هزار تومان)" class="btn-download">دانلود لیست گواهی‌خواهان</a>
+        <a href="/download_csv_filtered?certificate=خواهان گواهی نیستم (رایگان)" class="btn-download">دانلود لیست رایگان</a>
+
+        <div class="table-responsive">
+            <table id="adminTable" class="table table-striped table-bordered" style="width:100%">
+                <thead>
+                    <tr>
+                        { "".join([f"<th>{h}</th>" for h in PERSIAN_HEADERS]) }
+                        <th>اقدامات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                { "".join([
+                    f"""
+                    <tr>
+                        { "".join([
+                            f'<td>{f'<a href="/uploads/{r[h]}" target="_blank" class="receipt-link">مشاهده فیش</a>' if h == 'فیش واریزی' and r[h] else r[h]}</td>'
+                            for h in PERSIAN_HEADERS
+                        ]) }
+                        <td>
+                            <a href="/admin_delete/{loop_index}" class="btn btn-danger btn-sm" onclick="return confirm('آیا از حذف این رکورد مطمئن هستید؟');">حذف</a>
+                            <a href="/admin_edit/{loop_index}" class="btn btn-warning btn-sm">ویرایش</a>
+                        </td>
+                    </tr>
+                    """
+                    for loop_index, r in enumerate(rows)
+                ]) }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.datatables.net/2.0.8/js/dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/2.0.8/js/dataTables.bootstrap5.min.js"></script>
+    <script>
+    // اعمال DataTables با زبان فارسی
+    $(document).ready(() => {{
+        $('#adminTable').DataTable({{
+            language: {{
+                "sEmptyTable": "هیچ داده‌ای در جدول وجود ندارد",
+                "sInfo": "نمایش _START_ تا _END_ از _TOTAL_ رکورد",
+                "sInfoEmpty": "نمایش ۰ تا ۰ از ۰ رکورد",
+                "sInfoFiltered": "(فیلتر شده از _MAX_ رکورد)",
+                "sInfoPostFix": "",
+                "sInfoThousands": ",",
+                "sLengthMenu": "نمایش _MENU_ رکورد",
+                "sLoadingRecords": "در حال بارگزاری...",
+                "sProcessing": "در حال پردازش...",
+                "sSearch": "جستجو:",
+                "sZeroRecords": "رکوردی با این مشخصات یافت نشد",
+                "oPaginate": {{
+                    "sFirst": "ابتدا",
+                    "sLast": "انتها",
+                    "sNext": "بعدی",
+                    "sPrevious": "قبلی"
+                }},
+                "oAria": {{
+                    "sSortAscending": ": فعال سازی مرتب سازی صعودی",
+                    "sSortDescending": ": فعال سازی مرتب سازی نزولی"
+                }}
+            }}
+        }});
+    }});
+    </script>
+    </body>
+    </html>
+    """
+    return render_template_string(admin_html, headers=PERSIAN_HEADERS, rows=rows)
+
+
+@app.route("/download_file/<filename>")
 @requires_auth
-def uploaded_file(filename):
-    """سرو فایل‌های بارگذاری شده (فیش واریزی)"""
+def download_file(filename):
+    """دانلود فایل فیش واریزی"""
     return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
+
 
 @app.route("/download_csv", methods=["GET"])
 @requires_auth
@@ -980,6 +1068,7 @@ def download_csv():
     # ارسال فایل با نام مناسب برای دانلود
     return send_file(CSV_FILE, as_attachment=True, download_name="registrations_all.csv", mimetype="text/csv")
 
+
 @app.route("/download_csv_filtered", methods=["GET"])
 @requires_auth
 def download_csv_filtered():
@@ -987,31 +1076,25 @@ def download_csv_filtered():
     filter_value = request.args.get("certificate")
     if not filter_value:
         return "لطفاً مقدار فیلتر را مشخص کنید (certificate=...)", 400
-        
     if not os.path.exists(CSV_FILE):
         return "فایل CSV وجود ندارد", 404
-
     filtered_rows = []
     with open(CSV_FILE, "r", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            # استفاده از get برای اطمینان از وجود ستون
             if row.get("گواهی") == filter_value:
                 filtered_rows.append(row)
-
     # ساخت یک فایل CSV موقت برای ارسال
     temp_csv_filename = f"registrations_filtered_{filter_value.replace(' ', '_').replace('(50_هزار_تومان)', 'certified').replace('(رایگان)', 'free')}.csv"
     temp_csv_path = os.path.join(app.config["UPLOAD_FOLDER"], temp_csv_filename)
-    
     with open(temp_csv_path, "w", newline="", encoding="utf-8-sig") as f:
         writer = csv.DictWriter(f, fieldnames=PERSIAN_HEADERS)
         writer.writeheader()
         writer.writerows(filtered_rows)
-
     return send_file(temp_csv_path, as_attachment=True, download_name=temp_csv_filename, mimetype="text/csv")
 
-
 # ---------------- Admin Edit/Delete -----------------
+
 @app.route("/admin_delete/<int:index>", methods=["GET"])
 @requires_auth
 def admin_delete(index):
@@ -1025,7 +1108,6 @@ def admin_delete(index):
 
     if 0 <= index < len(rows):
         deleted_row = rows.pop(index)
-        
         # حذف فایل فیش واریزی در صورت وجود
         receipt_file = deleted_row.get("فیش واریزی")
         if receipt_file:
@@ -1042,10 +1124,10 @@ def admin_delete(index):
     return redirect("/admin")
 
 
-@app.route("/admin_edit/<int:index>", methods=["GET", "POST"])
+@app.route("/admin_edit/<int:index>", methods=["GET"])
 @requires_auth
 def admin_edit(index):
-    """ویرایش یک رکورد بر اساس ایندکس"""
+    """صفحه فرم ویرایش یک رکورد"""
     if not os.path.exists(CSV_FILE):
         return redirect("/admin")
 
@@ -1054,32 +1136,96 @@ def admin_edit(index):
         rows = list(csv.DictReader(f))
 
     if not (0 <= index < len(rows)):
-        return redirect("/admin")
+        return "رکورد یافت نشد", 404
 
     record = rows[index]
     
-    if request.method == "POST":
-        # دریافت داده‌های جدید از فرم
-        new_data = request.form.to_dict()
-        
-        # بروزرسانی رکورد
-        for h in PERSIAN_HEADERS:
-             if h != "فیش واریزی" and h in new_data:
-                 rows[index][h] = new_data[h]
+    # ساختار HTML برای صفحه ویرایش
+    edit_html = f"""
+    <!DOCTYPE html>
+    <html lang="fa" dir="rtl">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>ویرایش رکورد</title>
+        <style>
+        body {{ margin:0; font-family:'Vazir',sans-serif; background:linear-gradient(135deg,#1e3c72,#2a5298); color:#fff; display:flex; justify-content:center; align-items:center; min-height:100vh; }}
+        .card {{ background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius:20px; padding:2rem; max-width:480px; width:90%; box-shadow:0 8px 20px rgba(0,0,0,0.2); }}
+        h1 {{ text-align:center; font-size:1.3rem; margin-bottom:1rem; color:#ffdf5d; }}
+        label {{ display:block; margin: 1rem 0 0.3rem; font-weight: bold; }}
+        input[type="text"], input[type="email"], select {{ width:100%; padding:0.5rem; border-radius:8px; border:none; box-sizing:border-box; background:rgba(255,255,255,0.8); color:#000; }}
+        button {{ display:block; width:100%; margin-top: 1.5rem; background:linear-gradient(90deg,#ffdf5d,#ffb84d); color:#000; border:none; border-radius:10px; padding:0.7rem; cursor:pointer; transition:all 0.3s ease; }}
+        button:hover {{ background:linear-gradient(90deg,#ffd633,#ffa31a); transform:scale(1.05); }}
+        .receipt-link {{ color: #0d6efd; text-decoration: underline; }}
+        </style>
+    </head>
+    <body>
+    <div class="card">
+    <h1>ویرایش رکورد (شماره {index + 1})</h1>
+    <form method="POST" action="/admin_edit/{index}/save">
+    { "".join([
+        f'<label>{h}:</label>' + 
+        (f'<select name="{h}" required>' + 
+         (f'<option value="مرد" {"selected" if record.get(h) == "مرد" else ""}>مرد</option>' + 
+          f'<option value="زن" {"selected" if record.get(h) == "زن" else ""}>زن</option>') 
+         if h == 'جنسیت' else '') + 
+        (f'<select name="{h}" required>' + 
+         (f'<option value="کارشناسی" {"selected" if record.get(h) == "کارشناسی" else ""}>کارشناسی</option>' + 
+          f'<option value="کارشناسی ارشد" {"selected" if record.get(h) == "کارشناسی ارشد" else ""}>کارشناسی ارشد</option>' + 
+          f'<option value="دکتری" {"selected" if record.get(h) == "دکتری" else ""}>دکتری</option>' + 
+          f'<option value="دیگر" {"selected" if record.get(h) == "دیگر" else ""}>دیگر</option>') 
+         if h == 'مقطع تحصیلی' else '') + 
+        (f'<select name="{h}" required>' + 
+         (f'<option value="خواهان گواهی هستم (50 هزار تومان)" {"selected" if record.get(h) == "خواهان گواهی هستم (50 هزار تومان)" else ""}>خواهان گواهی هستم (50 هزار تومان)</option>' + 
+          f'<option value="خواهان گواهی نیستم (رایگان)" {"selected" if record.get(h) == "خواهان گواهی نیستم (رایگان)" else ""}>خواهان گواهی نیستم (رایگان)</option>') 
+         if h == 'گواهی' else '') + 
+        (f'<input type="text" name="{h}" value="{record.get(h, "")}" required>' 
+         if h not in ['جنسیت', 'مقطع تحصیلی', 'گواهی', 'فیش واریزی'] else '') +
+        (f'<p style="margin-top: 0; margin-bottom: 1rem;"><a href="/uploads/{record.get(h)}" target="_blank" class="receipt-link">مشاهده فایل فعلی: {record.get(h)}</a></p>' if h == 'فیش واریزی' and record.get(h) else '') +
+        (f'<p style="margin-top: 0; margin-bottom: 1rem;">فیشی بارگذاری نشده است.</p>' if h == 'فیش واریزی' and not record.get(h) else '')
+        for h in PERSIAN_HEADERS
+    ]) }
+    <button type="submit">ذخیره تغییرات</button>
+    </form>
+    </div>
+    </body>
+    </html>
+    """
+    
+    return edit_html
 
-        # بازنویسی کامل فایل CSV
-        with open(CSV_FILE, "w", newline="", encoding="utf-8-sig") as f:
-            writer = csv.DictWriter(f, fieldnames=PERSIAN_HEADERS)
-            writer.writeheader()
-            writer.writerows(rows)
-            
+
+@app.route("/admin_edit/<int:index>/save", methods=["POST"])
+@requires_auth
+def admin_save_edit(index):
+    """ذخیره تغییرات ویرایش شده یک رکورد"""
+    if not os.path.exists(CSV_FILE):
         return redirect("/admin")
 
-    # رندر قالب HTML برای نمایش فرم ویرایش
-    return render_template_string(admin_edit_html, index=index, record=record)
+    rows = []
+    with open(CSV_FILE, "r", encoding="utf-8-sig") as f:
+        rows = list(csv.DictReader(f))
 
+    if not (0 <= index < len(rows)):
+        return "رکورد یافت نشد", 404
 
-# ---------------- HTML Templates (Inline, for simplicity/Environment Vars) -----------------
+    updated_data = request.form.to_dict()
+    new_record = rows[index]
+
+    # اعمال تغییرات، به جز فیش واریزی (که در این فرم ویرایش نمی‌شود)
+    for h in PERSIAN_HEADERS:
+        if h != 'فیش واریزی' and h in updated_data:
+            new_record[h] = updated_data[h]
+
+    # بازنویسی کامل فایل CSV
+    with open(CSV_FILE, "w", newline="", encoding="utf-8-sig") as f:
+        writer = csv.DictWriter(f, fieldnames=PERSIAN_HEADERS)
+        writer.writeheader()
+        writer.writerows(rows)
+
+    return redirect("/admin")
+
+# --- HTML Templates (Includes Variables from Environment Vars) -----------------
 rules_html = """
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -1088,27 +1234,27 @@ rules_html = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ثبت‌نام کارگاه مقاله نویسی</title>
     <style>
-        body { margin: 0; font-family: 'Vazir', sans-serif; background: linear-gradient(135deg,#1e3c72,#2a5298); color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .card { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius: 20px; padding: 2rem; max-width: 480px; width: 90%; box-shadow: 0 8px 20px rgba(0,0,0,0.2); transition: transform 0.3s ease, box-shadow 0.3s ease; }
-        .card:hover { transform: scale(1.02); box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
-        h1 { text-align: center; font-size: 1.3rem; margin-bottom: 1rem; color: #ffdf5d; line-height: 1.8; }
-        ul { list-style-type: disc; padding-right: 20px; font-size: 0.95rem; line-height: 1.8; }
-        button { display: block; margin: 1.5rem auto 0; background: linear-gradient(90deg,#ffdf5d,#ffb84d); color: #000; border: none; border-radius: 10px; padding: 0.7rem 1.5rem; font-size: 1rem; cursor: pointer; transition: all 0.3s ease; }
-        button:hover { background: linear-gradient(90deg,#ffd633,#ffa31a); transform: scale(1.05); }
+    body { margin: 0; font-family: 'Vazir', sans-serif; background: linear-gradient(135deg,#1e3c72,#2a5298); color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+    .card { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius: 20px; padding: 2rem; max-width: 480px; width: 90%; box-shadow: 0 8px 20px rgba(0,0,0,0.2); transition: transform 0.3s ease, box-shadow 0.3s ease; }
+    .card:hover { transform: scale(1.02); box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+    h1 { text-align: center; font-size: 1.3rem; margin-bottom: 1rem; color: #ffdf5d; line-height: 1.8; }
+    ul { list-style-type: disc; padding-right: 20px; font-size: 0.95rem; line-height: 1.8; }
+    button { display: block; margin: 1.5rem auto 0; background: linear-gradient(90deg,#ffdf5d,#ffb84d); color: #000; border: none; border-radius: 10px; padding: 0.7rem 1.5rem; font-size: 1rem; cursor: pointer; transition: all 0.3s ease; }
+    button:hover { background: linear-gradient(90deg,#ffd633,#ffa31a); transform: scale(1.05); }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h1>با سلام<br>لطفا نکات زیر را به دقت مطالعه فرمایید.</h1>
-        <ul>
-            <li>1_ حضور در جلسات به عنوان مستمع آزاد بدون درخواست صدور گواهی، رایگان است.</li>
-            <li>2_ هزینه واریزی برای صدور گواهی به هیچ عنوان عودت داده نمی‌شود.</li>
-            <li>3_ از مخاطبان گرامی درخواست می‌شود در صورت تمایل به صدور گواهی، پس از ثبت اطلاعات و واریز هزینه، عکس فیش آن را ذخیره کرده تا در سامانه بارگذاری کنید.</li>
-        </ul>
-        <form action="/start_form" method="POST">
-            <button type="submit">تأیید و ادامه</button>
-        </form>
-    </div>
+<div class="card">
+    <h1>با سلام<br>لطفا نکات زیر را به دقت مطالعه فرمایید.</h1>
+    <ul>
+        <li>1_ حضور در جلسات به عنوان مستمع آزاد بدون درخواست صدور گواهی، رایگان است.</li>
+        <li>2_ هزینه واریزی برای صدور گواهی به هیچ عنوان عودت داده نمی‌شود.</li>
+        <li>3_ از مخاطبان گرامی درخواست می‌شود در صورت تمایل به صدور گواهی، پس از ثبت اطلاعات و واریز هزینه، عکس فیش آن را ذخیره کرده تا در سامانه بارگذاری کنید.</li>
+    </ul>
+    <form action="/start_form" method="POST">
+        <button type="submit">تأیید و ادامه</button>
+    </form>
+</div>
 </body>
 </html>
 """
@@ -1121,44 +1267,44 @@ form_html = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>فرم ثبت نام</title>
     <style>
-        body { margin:0; font-family:'Vazir',sans-serif; background:linear-gradient(135deg,#1e3c72,#2a5298); color:#fff; display:flex; justify-content:center; align-items:center; min-height:100vh; }
-        .card { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius:20px; padding:2rem; max-width:480px; width:90%; box-shadow:0 8px 20px rgba(0,0,0,0.2); }
-        h1 { text-align:center; font-size:1.3rem; margin-bottom:1rem; color:#ffdf5d; }
-        label { display:block; margin: 1rem 0 0.3rem; font-weight:bold; }
-        input[type="text"], input[type="number"], select { width: 100%; padding: 0.7rem; margin-bottom: 0.5rem; border-radius: 8px; border: none; box-sizing: border-box; background: rgba(255,255,255,0.8); color: #000; }
-        button { display:block; width:100%; margin-top: 1.5rem; background:linear-gradient(90deg,#ffdf5d,#ffb84d); color:#000; border:none; border-radius:10px; padding:0.7rem; cursor:pointer; transition:all 0.3s ease; }
-        button:hover { background:linear-gradient(90deg,#ffd633,#ffa31a); transform:scale(1.05); }
+    body { margin:0; font-family:'Vazir',sans-serif; background:linear-gradient(135deg,#1e3c72,#2a5298); color:#fff; display:flex; justify-content:center; align-items:center; min-height:100vh; }
+    .card { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius:20px; padding:2rem; max-width:480px; width:90%; box-shadow:0 8px 20px rgba(0,0,0,0.2); }
+    h1 { text-align:center; font-size:1.3rem; margin-bottom:1.5rem; color:#ffdf5d; }
+    label { display:block; margin: 1rem 0 0.3rem; font-weight: bold; }
+    input[type="text"], input[type="email"], select { width:100%; padding:0.5rem; border-radius:8px; border:none; box-sizing:border-box; background:rgba(255,255,255,0.8); color:#000; }
+    button { display:block; width:100%; margin-top: 1.5rem; background:linear-gradient(90deg,#ffdf5d,#ffb84d); color:#000; border:none; border-radius:10px; padding:0.7rem; cursor:pointer; transition:all 0.3s ease; }
+    button:hover { background:linear-gradient(90deg,#ffd633,#ffa31a); transform:scale(1.05); }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h1>فرم ثبت نام کارگاه</h1>
-        <form method="POST" action="/form">
-            <label>نام:</label><input type="text" name="first_name" required>
-            <label>نام خانوادگی:</label><input type="text" name="last_name" required>
-            <label>کد ملی:</label><input type="text" name="national_code" pattern="[0-9۰-۹]{10}" inputmode="numeric" required>
-            <label>شماره دانشجویی:</label><input type="text" name="student_number" required>
-            <label>نام دانشگاه:</label><input type="text" name="university" required>
-            <label>نام دانشکده:</label><input type="text" name="faculty" required>
-            <label>جنسیت:</label>
-            <select name="gender" required>
-                <option value="">انتخاب کنید</option>
-                <option value="مرد">مرد</option>
-                <option value="زن">زن</option>
-            </select>
-            <label>شماره تلفن:</label><input type="text" name="phone" pattern="[0-9۰-۹]{11}" inputmode="numeric" required>
-            <label>مقطع تحصیلی:</label>
-            <select name="degree" required>
-                <option value="">انتخاب کنید</option>
-                <option value="کارشناسی">کارشناسی</option>
-                <option value="کارشناسی ارشد">کارشناسی ارشد</option>
-                <option value="دکتری">دکتری</option>
-                <option value="دیگر">دیگر</option>
-            </select>
-            <label>رشته تحصیلی:</label><input type="text" name="major" required>
-            <button type="submit">ثبت و ادامه</button>
-        </form>
-    </div>
+<div class="card">
+    <h1>تکمیل اطلاعات فردی</h1>
+    <form method="POST" action="/form">
+        <label>نام:</label><input type="text" name="first_name" required>
+        <label>نام خانوادگی:</label><input type="text" name="last_name" required>
+        <label>کد ملی:</label><input type="text" name="national_code" pattern="[0-9۰-۹]{10}" inputmode="numeric" required>
+        <label>شماره دانشجویی:</label><input type="text" name="student_number" required>
+        <label>نام دانشگاه:</label><input type="text" name="university" required>
+        <label>نام دانشکده:</label><input type="text" name="faculty" required>
+        <label>جنسیت:</label>
+        <select name="gender" required>
+            <option value="">انتخاب کنید</option>
+            <option value="مرد">مرد</option>
+            <option value="زن">زن</option>
+        </select>
+        <label>شماره تلفن:</label><input type="text" name="phone" pattern="[0-9۰-۹]{11}" inputmode="numeric" required>
+        <label>مقطع تحصیلی:</label>
+        <select name="degree" required>
+            <option value="">انتخاب کنید</option>
+            <option value="کارشناسی">کارشناسی</option>
+            <option value="کارشناسی ارشد">کارشناسی ارشد</option>
+            <option value="دکتری">دکتری</option>
+            <option value="دیگر">دیگر</option>
+        </select>
+        <label>رشته تحصیلی:</label><input type="text" name="major" required>
+        <button type="submit">ثبت و ادامه</button>
+    </form>
+</div>
 </body>
 </html>
 """
@@ -1171,179 +1317,163 @@ certificate_html = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>درخواست گواهی</title>
     <style>
-        body { margin:0; font-family:'Vazir',sans-serif; background:linear-gradient(135deg,#1e3c72,#2a5298); color:#fff; display:flex; justify-content:center; align-items:center; min-height:100vh; }
-        .card { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius:20px; padding:2rem; max-width:480px; width:90%; box-shadow:0 8px 20px rgba(0,0,0,0.2); }
-        h1 { text-align:center; font-size:1.3rem; margin-bottom:1rem; color:#ffdf5d; }
-        button { display:block; width:100%; margin-top: 1rem; background:linear-gradient(90deg,#ffdf5d,#ffb84d); color:#000; border:none; border-radius:10px; padding:0.7rem; cursor:pointer; transition:all 0.3s ease; }
-        button:hover { background:linear-gradient(90deg,#ffd633,#ffa31a); transform:scale(1.05); }
-        .alert { margin-top:1rem; padding:0.5rem; border-radius:10px; }
+    body { margin:0; font-family:'Vazir',sans-serif; background:linear-gradient(135deg,#1e3c72,#2a5298); color:#fff; display:flex; justify-content:center; align-items:center; min-height:100vh; }
+    .card { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius:20px; padding:2rem; max-width:480px; width:90%; box-shadow:0 8px 20px rgba(0,0,0,0.2); }
+    h1 { text-align:center; font-size:1.3rem; margin-bottom:1rem; color:#ffdf5d; }
+    button { display:block; width:100%; margin-top: 1rem; background:linear-gradient(90deg,#ffdf5d,#ffb84d); color:#000; border:none; border-radius:10px; padding:0.7rem; cursor:pointer; transition:all 0.3s ease; }
+    button:hover { background:linear-gradient(90deg,#ffd633,#ffa31a); transform:scale(1.05); }
+    .alert { margin-top:1rem; padding:0.5rem; border-radius:10px; }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h1>درخواست گواهی</h1>
-        <form method="POST" action="/certificate">
-            <div>
-                <input type="radio" name="certificate" value="خواهان گواهی هستم (50 هزار تومان)" id="certYes" required>
-                <label for="certYes">خواهان گواهی هستم (50 هزار تومان)</label>
-            </div>
-            <div>
-                <input type="radio" name="certificate" value="خواهان گواهی نیستم (رایگان)" id="certNo">
-                <label for="certNo">خواهان گواهی نیستم (رایگان)</label>
-            </div>
-            <div class="alert" style="background-color:rgba(255, 255, 0, 0.1); color:#ffdf5d;">
-                <p>لطفاً در تصمیم‌گیری خود دقت کنید. در صورت انتخاب "خواهان گواهی نیستم" امکان صدور گواهی وجود نخواهد داشت.</p>
-            </div>
-            <button type="submit">ادامه فرآیند</button>
-        </form>
-    </div>
+<div class="card">
+    <h1>درخواست گواهی</h1>
+    <form method="POST" action="/certificate">
+        <div>
+            <input type="radio" name="certificate" value="خواهان گواهی هستم (50 هزار تومان)" id="certYes" required>
+            <label for="certYes">خواهان گواهی هستم (50 هزار تومان)</label>
+        </div>
+        <div style="margin-top: 1rem;">
+            <input type="radio" name="certificate" value="خواهان گواهی نیستم (رایگان)" id="certNo">
+            <label for="certNo">خواهان گواهی نیستم (رایگان)</label>
+        </div>
+        <div class="alert" style="background-color: rgba(255, 223, 93, 0.2); color: #ffdf5d; border: 1px solid #ffdf5d;">
+        هزینه صدور گواهی برای تأیید حضور و صدور گواهی شرکت در کارگاه ۵۰ هزار تومان است.
+        </div>
+        <button type="submit">ثبت انتخاب و ادامه</button>
+    </form>
+</div>
 </body>
 </html>
 """
 
-payment_upload_html = """
+payment_upload_html = f"""
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>بارگذاری فیش</title>
+    <title>پرداخت و بارگذاری فیش</title>
     <style>
-        body { margin:0; font-family:'Vazir',sans-serif; background:linear-gradient(135deg,#1e3c72,#2a5298); color:#fff; display:flex; justify-content:center; align-items:center; min-height:100vh; }
-        .card { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius:20px; padding:2rem; max-width:480px; width:90%; box-shadow:0 8px 20px rgba(0,0,0,0.2); }
-        h1 { text-align:center; font-size:1.3rem; margin-bottom:1rem; color:#ffdf5d; }
-        p { text-align:center; font-size:1rem; line-height: 1.8; }
-        .card-number-box { background: rgba(255,255,255,0.2); border-radius: 10px; padding: 1rem; margin: 1rem auto; text-align: center; font-size: 1.5rem; font-weight: bold; cursor: pointer; user-select: none; border: 2px solid #ffdf5d; transition: all 0.2s ease; }
-        .card-number-box:active { transform: scale(0.98); }
-        .card-name { font-size: 0.9rem; font-weight: normal; margin-top: 0.5rem; color: #fff; opacity: 0.9; }
-        #copyMessage { text-align:center; color:#ffdf5d; font-size:0.9rem; visibility:hidden; }
-        #errorMessage { text-align:center; color:#ff6b6b; font-size:0.9rem; margin-top: 1rem; display: none; }
-        label { display:block; margin: 1rem 0 0.3rem; }
-        input[type="file"] { width: 100%; padding: 0.5rem; border-radius: 8px; border: none; box-sizing: border-box; background: rgba(255,255,255,0.8); color: #000; }
-        /* ! نوار پیشرفت */
-        #uploadProgress { margin-top: 1.5rem; }
-        #progressContainer { background-color: rgba(255,255,255,0.3); border-radius: 5px; height: 10px; overflow: hidden; }
-        #progressBar { width: 0%; height: 100%; border-radius: 5px; background-color: #ffdf5d; transition: width 0.3s ease; }
-        button { display:block; width:100%; margin-top: 1.5rem; background:linear-gradient(90deg,#ffdf5d,#ffb84d); color:#000; border:none; border-radius:10px; padding:0.7rem; cursor:pointer; transition:all 0.3s ease; }
-        button:hover { background:linear-gradient(90deg,#ffd633,#ffa31a); transform:scale(1.05); }
+    body {{ margin:0; font-family:'Vazir',sans-serif; background:linear-gradient(135deg,#1e3c72,#2a5298); color:#fff; display:flex; justify-content:center; align-items:center; min-height:100vh; }}
+    .card {{ background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius:20px; padding:2rem; max-width:480px; width:90%; box-shadow:0 8px 20px rgba(0,0,0,0.2); }}
+    h1 {{ text-align:center; font-size:1.3rem; margin-bottom:1rem; color:#ffdf5d; }}
+    p {{ text-align:center; margin-bottom: 0.5rem; font-size: 0.95rem; line-height: 1.6; }}
+    /* ! کارت بانکی */
+    .card-number-box {{ background-color:#fff; color:#1e3c72; padding:0.7rem; border-radius:10px; font-size:1.2rem; font-weight:bold; letter-spacing:1px; margin: 1rem auto; cursor:pointer; box-shadow:0 4px 8px rgba(0,0,0,0.1); position:relative; overflow:hidden; }}
+    .card-number-box:active {{ background-color:#eee; }}
+    .card-name {{ font-size:0.8rem; font-weight:normal; margin-top:0.3rem; color:#333; opacity: 0.9; }}
+    #copyMessage {{ text-align:center; color:#ffdf5d; font-size:0.9rem; visibility:hidden; }}
+    #errorMessage {{ text-align:center; color:#ff6b6b; font-size:0.9rem; margin-top: 1rem; display: none; }}
+    label {{ display:block; margin: 1rem 0 0.3rem; }}
+    input[type="file"] {{ width: 100%; padding: 0.5rem; border-radius: 8px; border: none; box-sizing: border-box; background: rgba(255,255,255,0.8); color: #000; }}
+    /* ! نوار پیشرفت */
+    #uploadProgress {{ margin-top: 1.5rem; }}
+    #progressContainer {{ background-color: rgba(255,255,255,0.3); border-radius: 5px; height: 10px; overflow: hidden; }}
+    #progressBar {{ width: 0%; height: 100%; border-radius: 5px; background-color: #ffdf5d; transition: width 0.3s ease; }}
+    button {{ display:block; width:100%; margin-top: 1.5rem; background:linear-gradient(90deg,#ffdf5d,#ffb84d); color:#000; border:none; border-radius:10px; padding:0.7rem; cursor:pointer; transition:all 0.3s ease; }}
+    button:hover {{ background:linear-gradient(90deg,#ffd633,#ffa31a); transform:scale(1.05); }}
     </style>
 </head>
 <body>
-    <div class="card">
-        <h1>پرداخت و بارگذاری فیش</h1>
-        <p>لطفاً مبلغ ۵۰ هزار تومان را به شماره کارت زیر واریز نمایید:</p>
-        <div id="cardNumber" class="card-number-box" onclick="copyCardNumber()">
-            {YOUR_CARD_NUMBER_DISPLAY}
-            <div class="card-name">به نام: {YOUR_CARD_NAME}</div> </div>
-        <p id="copyMessage">شماره کارت کپی شد!</p>
-        <p>سپس، تصویر فیش واریزی خود را بارگذاری کنید.</p>
-        <form id="receiptForm" method="POST" action="/payment_upload" enctype="multipart/form-data">
-            <label for="receipt">تصویر فیش واریزی:</label>
-            <input type="file" id="receipt" name="receipt_file" accept="image/*" required>
-            <div id="uploadProgress" style="display:none; margin-top: 1rem;">
-                <p style="text-align: right; margin-bottom: 0.5rem; font-size: 0.9rem;">در حال آپلود: <span id="progressPercent">0%</span></p>
-                <div id="progressContainer">
-                    <div id="progressBar"></div>
-                </div>
+<div class="card">
+    <h1>پرداخت و بارگذاری فیش</h1>
+    <p>لطفاً مبلغ ۵۰ هزار تومان را به شماره کارت زیر واریز نمایید:</p>
+    <div id="cardNumber" class="card-number-box" onclick="copyCardNumber()">
+        {YOUR_CARD_NUMBER_DISPLAY}
+        <div class="card-name">به نام: {YOUR_CARD_NAME}</div> 
+        </div>
+    <p id="copyMessage">شماره کارت کپی شد!</p>
+    <p>سپس، تصویر فیش واریزی خود را بارگذاری کنید.</p>
+    <form id="receiptForm" method="POST" action="/payment_upload" enctype="multipart/form-data">
+        <label for="receipt">تصویر فیش واریزی:</label>
+        <input type="file" id="receipt" name="receipt_file" accept="image/*" required>
+        <div id="uploadProgress" style="display:none; margin-top: 1rem;">
+            <p id="progressPercent" style="text-align: right; margin-bottom: 0.3rem; font-size: 0.9rem;">0%</p>
+            <div id="progressContainer">
+                <div id="progressBar"></div>
             </div>
-            
-            <p id="errorMessage" style="color: red;">خطا در ارسال! لطفاً دوباره تلاش کنید.</p>
-            <button type="submit" id="submitButton">ثبت نهایی و ارسال فیش</button>
-        </form>
-    </div>
+        </div>
+        <p id="errorMessage">متاسفانه ارسال فیش موفق نبود. لطفا دوباره تلاش کنید.</p>
+        <button type="submit" id="submitButton">ثبت نهایی و ارسال فیش</button>
+    </form>
+</div>
 
-    <script>
-        // فانکشن کپی کردن شماره کارت
-        function copyCardNumber() {
-            // حذف خطوط فاصله از شماره کارت برای کپی
-            const cardNumber = "{RAW_CARD_NUMBER}"; 
-            navigator.clipboard.writeText(cardNumber).then(() => {
-                const message = document.getElementById('copyMessage');
-                message.style.visibility = 'visible';
-                setTimeout(() => {
-                    message.style.visibility = 'hidden';
-                }, 2000);
-            }).catch(err => {
-                console.error('Could not copy text: ', err);
-                // Fallback for older browsers
-                const tempInput = document.createElement('input');
-                document.body.appendChild(tempInput);
-                tempInput.setAttribute('value', cardNumber);
-                tempInput.select();
-                document.execCommand('copy');
-                document.body.removeChild(tempInput);
-                
-                const message = document.getElementById('copyMessage');
-                message.innerText = 'شماره کارت کپی شد (فال‌بک)!';
-                message.style.visibility = 'visible';
-                setTimeout(() => {
-                    message.style.visibility = 'hidden';
-                }, 2000);
-            });
-        }
-        
-        // ارسال فرم با AJAX و نوار پیشرفت
-        document.getElementById('receiptForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const form = e.target;
-            const formData = new FormData(form);
-            const submitButton = document.getElementById('submitButton');
-            const uploadProgress = document.getElementById('uploadProgress');
-            const progressBar = document.getElementById('progressBar');
-            const progressPercent = document.getElementById('progressPercent');
-            const errorMessage = document.getElementById('errorMessage');
+<script>
+function copyCardNumber() {{
+    // شماره کارت خام برای کپی کردن
+    const rawNumber = "{RAW_CARD_NUMBER}"; 
+    navigator.clipboard.writeText(rawNumber).then(() => {{
+        const copyMessage = document.getElementById('copyMessage');
+        copyMessage.style.visibility = 'visible';
+        setTimeout(() => {{ copyMessage.style.visibility = 'hidden'; }}, 2000);
+    }}).catch(err => {{
+        console.error('Could not copy text: ', err);
+    }});
+}}
 
-            // مخفی کردن پیام خطا اگر قبلاً نمایش داده شده بود
-            errorMessage.style.display = 'none';
+// ارسال فرم با AJAX و نوار پیشرفت
+document.getElementById('receiptForm').addEventListener('submit', function(e) {{
+    e.preventDefault();
+    const form = e.target;
+    const formData = new FormData(form);
+    const submitButton = document.getElementById('submitButton');
+    const uploadProgress = document.getElementById('uploadProgress');
+    const progressBar = document.getElementById('progressBar');
+    const progressPercent = document.getElementById('progressPercent');
+    const errorMessage = document.getElementById('errorMessage');
 
-            // غیرفعال کردن دکمه و نمایش نوار پیشرفت
-            submitButton.disabled = true;
-            submitButton.innerText = 'در حال ارسال... لطفا صبر کنید';
-            uploadProgress.style.display = 'block';
+    // مخفی کردن پیام خطا اگر قبلاً نمایش داده شده بود
+    errorMessage.style.display = 'none';
 
-            const xhr = new XMLHttpRequest();
+    // غیرفعال کردن دکمه و نمایش نوار پیشرفت
+    submitButton.disabled = true;
+    submitButton.innerText = 'در حال ارسال... لطفا صبر کنید';
+    uploadProgress.style.display = 'block';
 
-            // ردیابی پیشرفت آپلود
-            xhr.upload.onprogress = function(event) {
-                if (event.lengthComputable) {
-                    const percentComplete = (event.loaded / event.total) * 100;
-                    progressBar.style.width = percentComplete.toFixed(0) + '%';
-                    progressPercent.innerText = percentComplete.toFixed(0) + '%';
-                }
-            }
+    const xhr = new XMLHttpRequest();
 
-            // پاسخ نهایی
-            xhr.onload = function() {
-                // پس از اتمام آپلود، نوار را کامل کن
-                progressBar.style.width = '100%'; 
+    // ردیابی پیشرفت آپلود
+    xhr.upload.onprogress = function(event) {{
+        if (event.lengthComputable) {{
+            const percentComplete = (event.loaded / event.total) * 100;
+            progressBar.style.width = percentComplete.toFixed(0) + '%';
+            progressPercent.innerText = percentComplete.toFixed(0) + '%';
+        }}
+    }}
 
-                if (xhr.status === 200) {
-                    // پاسخ 200 نشان دهنده موفقیت و نیاز به ریدایرکت است.
-                    window.location.href = '/thanks';
-                } else {
-                    // نمایش خطا در صورت عدم موفقیت
-                    console.error('Upload failed with status:', xhr.status, xhr.responseText);
-                    errorMessage.style.display = 'block';
-                    // بازگرداندن دکمه و پنهان کردن نوار پیشرفت
-                    submitButton.disabled = false;
-                    submitButton.innerText = 'ثبت نهایی و ارسال فیش';
-                    uploadProgress.style.display = 'none';
-                }
-            };
+    // پاسخ نهایی
+    xhr.onload = function() {{
+        // پس از اتمام آپلود، نوار را کامل کن
+        progressBar.style.width = '100%';
+        if (xhr.status === 200) {{
+            // پاسخ 200 نشان دهنده موفقیت و نیاز به ریدایرکت است.
+            window.location.href = '/thanks';
+        }} else {{
+            // نمایش خطا در صورت عدم موفقیت
+            console.error('Upload failed with status:', xhr.status, xhr.responseText);
+            errorMessage.style.display = 'block';
 
-            // رسیدگی به خطاهای شبکه
-            xhr.onerror = function() {
-                console.error('Network error during upload.');
-                errorMessage.style.display = 'block';
-                submitButton.disabled = false;
-                submitButton.innerText = 'ثبت نهایی و ارسال فیش';
-                uploadProgress.style.display = 'none';
-            };
+            // بازگرداندن دکمه و پنهان کردن نوار پیشرفت
+            submitButton.disabled = false;
+            submitButton.innerText = 'ثبت نهایی و ارسال فیش';
+            uploadProgress.style.display = 'none';
+        }}
+    }};
 
-            xhr.open('POST', form.action, true);
-            xhr.send(formData);
-        });
-    </script>
+    // رسیدگی به خطاهای شبکه
+    xhr.onerror = function() {{
+        console.error('Network error during upload.');
+        errorMessage.style.display = 'block';
+        submitButton.disabled = false;
+        submitButton.innerText = 'ثبت نهایی و ارسال فیش';
+        uploadProgress.style.display = 'none';
+    }};
+
+    xhr.open('POST', form.action, true);
+    xhr.send(formData);
+}});
+</script>
 </body>
 </html>
 """
@@ -1354,217 +1484,29 @@ thanks_html = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>تشکر از شما</title>
+    <title>تشکر</title>
     <style>
-        body { margin:0; font-family:'Vazir',sans-serif; background:linear-gradient(135deg,#1e3c72,#2a5298); color:#fff; display:flex; justify-content:center; align-items:center; min-height:100vh; }
-        .card { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius:20px; padding:2rem; max-width:480px; width:90%; box-shadow:0 8px 20px rgba(0,0,0,0.2); text-align:center; }
-        h1 { font-size:1.6rem; margin-bottom:1rem; color:#ffdf5d; }
-        p { font-size:1.1rem; line-height:1.8; }
-        .success-icon { font-size: 3rem; color: #198754; margin-bottom: 1rem; }
+    body { margin:0; font-family:'Vazir',sans-serif; background:linear-gradient(135deg,#1e3c72,#2a5298); color:#fff; display:flex; justify-content:center; align-items:center; min-height:100vh; }
+    .card { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius:20px; padding:2rem; max-width:480px; width:90%; box-shadow:0 8px 20px rgba(0,0,0,0.2); text-align:center; }
+    h1 { font-size:1.5rem; margin-bottom:1rem; color:#8aff8a; }
+    p { font-size:1.1rem; line-height:1.8; }
+    a.btn { display:inline-block; margin-top:1.5rem; background:linear-gradient(90deg,#ffdf5d,#ffb84d); color:#000; border:none; border-radius:10px; padding:0.6rem 1.2rem; text-decoration:none; font-weight:bold; transition:all 0.3s ease; }
+    a.btn:hover { background:linear-gradient(90deg,#ffd633,#ffa31a); transform:scale(1.05); }
     </style>
 </head>
 <body>
-    <div class="card">
-        <div class="success-icon">🎉</div>
-        <h1>ثبت نام با موفقیت انجام شد!</h1>
-        <p>سپاس از شما، اطلاعات ثبت‌نام شما دریافت شد. در اسرع وقت نتیجه نهایی و لینک‌های دسترسی ارسال خواهد شد.</p>
-        <p>لطفاً کانال تلگرام ما را دنبال کنید.</p>
-    </div>
-</body>
-</html>
-"""
-
-admin_html = """
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>پنل ادمین - ثبت‌نام‌ها</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.datatables.net/2.0.8/css/dataTables.bootstrap5.min.css" rel="stylesheet">
-    <style>
-        body { margin:0; font-family:'Vazir', sans-serif; background:linear-gradient(135deg,#1e3c72,#2a5298); color:#fff; padding-top: 40px; padding-bottom: 40px; min-height: 100vh; }
-        .card { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-radius:20px; padding:2rem; max-width: 1200px; /* افزایش عرض برای جدول */ width: 95%; margin: auto; box-shadow:0 8px 20px rgba(0,0,0,0.2); color: #333; /* رنگ متن داخل کارت تیره شد */ }
-        h3 { text-align:center; margin-bottom:1.5rem; color:#1e3c72; } /* رنگ عنوان تیره شد */
-        /* ! --- استایل دکمه فعال/غیرفعال‌سازی --- */
-        .form-status-container { background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 10px; padding: 1rem; margin-bottom: 1.5rem; text-align: center; }
-        .form-status-container p { font-size: 1.1rem; font-weight: bold; margin-bottom: 0.5rem; }
-        .status-active { color: #198754; /* Green */ }
-        .status-inactive { color: #dc3545; /* Red */ }
-        .form-status-container .btn { width: 100%; max-width: 400px; margin-top: 0.5rem; font-weight: bold; }
-        /* ! --- پایان استایل --- */
-        /* استایل دکمه‌های دانلود */
-        .btn-download { background: linear-gradient(90deg,#ffdf5d,#ffb84d); color:#000; border:none; border-radius:10px; padding:0.5rem 1rem; text-decoration:none; transition: all 0.3s ease; margin-bottom: 1rem; display: inline-block; }
-        .btn-download:hover { background: linear-gradient(90deg,#ffd633,#ffa31a); transform:scale(1.05); color: #000; }
-        /* استایل DataTables */
-        table.dataTable { width: 100% !important; }
-        table.dataTable th { background-color: #f8f9fa !important; color: #333 !important; }
-        .receipt-link { color: #0d6efd; text-decoration: underline; }
-    </style>
-</head>
-<body>
-    <div class="card">
-        <h3>پنل مدیریت ثبت‌نام‌های کارگاه</h3>
-        
-        <div class="form-status-container">
-            <p>وضعیت کنونی سایت برای ثبت‌نام:</p>
-            {% if form_active %}
-                <p class="status-active">✅ فعال</p>
-                <form action="/admin/toggle_form" method="POST">
-                    <button type="submit" class="btn btn-danger">🔴 غیرفعال‌سازی سایت</button>
-                </form>
-            {% else %}
-                <p class="status-inactive">❌ غیرفعال (تکمیل ظرفیت)</p>
-                <form action="/admin/toggle_form" method="POST">
-                    <button type="submit" class="btn btn-success">🟢 فعال‌سازی سایت</button>
-                </form>
-            {% endif %}
-        </div>
-        <div class="mb-3">
-            <a href="/download_csv" class="btn-download">⬇️ دانلود همه ثبت‌نام‌ها (CSV)</a>
-            <a href="/download_csv_filtered?certificate=خواهان گواهی هستم (50 هزار تومان)" class="btn-download" style="background: linear-gradient(90deg, #198754, #157347); color: white;">⬇️ دانلود خواهان گواهی</a>
-            <a href="/download_csv_filtered?certificate=خواهان گواهی نیستم (رایگان)" class="btn-download" style="background: linear-gradient(90deg, #ffc107, #ffcd39); color: #333;">⬇️ دانلود رایگان</a>
-        </div>
-        
-        <div class="table-responsive">
-            <table id="adminTable" class="table table-striped table-hover">
-                <thead>
-                    <tr>
-                        {% for h in headers %}
-                        <th>{{h}}</th>
-                        {% endfor %}
-                        <th>اقدامات</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for r in rows %}
-                    <tr>
-                        {% for h in headers %}
-                        <td>
-                            {% if h == 'فیش واریزی' and r[h] %}
-                            <a href="/uploads/{{ r[h] }}" target="_blank" class="receipt-link">مشاهده فیش</a>
-                            {% else %}
-                            {{ r[h] }}
-                            {% endif %}
-                        </td>
-                        {% endfor %}
-                        <td>
-                            <a href="/admin_delete/{{loop.index0}}" class="btn btn-danger btn-sm" onclick="return confirm('آیا از حذف این رکورد مطمئن هستید؟');">حذف</a>
-                            <a href="/admin_edit/{{loop.index0}}" class="btn btn-warning btn-sm">ویرایش</a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script src="https://cdn.datatables.net/2.0.8/js/dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/2.0.8/js/dataTables.bootstrap5.min.js"></script>
-    <script>
-        // اعمال DataTables با زبان فارسی
-        $(document).ready(() => {
-            $('#adminTable').DataTable({
-                language: {
-                    "sEmptyTable": "هیچ داده‌ای در جدول وجود ندارد",
-                    "sInfo": "نمایش _START_ تا _END_ از _TOTAL_ رکورد",
-                    "sInfoEmpty": "نمایش ۰ تا ۰ از ۰ رکورد",
-                    "sInfoFiltered": "(فیلتر شده از _MAX_ رکورد)",
-                    "sInfoPostFix": "",
-                    "sInfoThousands": ",",
-                    "sLengthMenu": "نمایش _MENU_ رکورد",
-                    "sLoadingRecords": "در حال بارگزاری...",
-                    "sProcessing": "در حال پردازش...",
-                    "sSearch": "جستجو:",
-                    "sZeroRecords": "رکوردی با این مشخصات یافت نشد",
-                    "oPaginate": {
-                        "sFirst": "ابتدا",
-                        "sLast": "انتها",
-                        "sNext": "بعدی",
-                        "sPrevious": "قبلی"
-                    },
-                    "oAria": {
-                        "sSortAscending": ": فعال سازی نمایش صعودی",
-                        "sSortDescending": ": فعال سازی نمایش نزولی"
-                    }
-                }
-            });
-        });
-    </script>
-</body>
-</html>
-"""
-
-admin_edit_html = """
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ویرایش رکورد</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body { margin:0; font-family:'Vazir', sans-serif; background:linear-gradient(135deg,#1e3c72,#2a5298); color:#fff; display:flex; justify-content:center; align-items:center; min-height:100vh; }
-        .card { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-radius:20px; padding:2rem; max-width: 600px; width: 90%; box-shadow:0 8px 20px rgba(0,0,0,0.2); color: #333; }
-        h1 { text-align:center; font-size:1.6rem; margin-bottom:1.5rem; color:#1e3c72; }
-        label { display:block; margin: 1rem 0 0.3rem; font-weight:bold; color: #1e3c72; }
-        input[type="text"], input[type="number"], select { width: 100%; padding: 0.7rem; margin-bottom: 0.5rem; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; background: #fff; color: #333; }
-        button { float: left; margin-top: 1.5rem; background:linear-gradient(90deg,#1e3c72,#2a5298); color:#fff; border:none; border-radius:10px; padding:0.7rem 1.5rem; cursor:pointer; transition:all 0.3s ease; font-weight: bold; }
-        button:hover { background:linear-gradient(90deg,#172a50,#203d6d); transform:scale(1.02); color: #fff; }
-        .btn-delete { float: right; margin-top: 1.5rem; background:linear-gradient(90deg,#dc3545,#c82333); color:#fff; border:none; border-radius:10px; padding:0.7rem 1.5rem; cursor:pointer; transition:all 0.3s ease; font-weight: bold; }
-        .btn-delete:hover { background:linear-gradient(90deg,#c82333,#bd2130); transform:scale(1.02); color: #fff; }
-        .clearfix::after { content: ""; clear: both; display: table; }
-        .receipt-link { color: #0d6efd; text-decoration: underline; }
-    </style>
-</head>
-<body>
-    <div class="card">
-        <h1>ویرایش رکورد (شماره {{ index + 1 }})</h1>
-        <form method="POST" action="/admin_edit/{{ index }}" class="clearfix">
-        {% for h, v in record.items() %}
-            {% if h != 'فیش واریزی' %}
-                <label>{{ h }}:</label>
-                {% if h == 'جنسیت' %}
-                    <select name="{{ h }}" required>
-                        <option value="مرد" {% if v == 'مرد' %}selected{% endif %}>مرد</option>
-                        <option value="زن" {% if v == 'زن' %}selected{% endif %}>زن</option>
-                    </select>
-                {% elif h == 'مقطع تحصیلی' %}
-                    <select name="{{ h }}" required>
-                        <option value="کارشناسی" {% if v == 'کارشناسی' %}selected{% endif %}>کارشناسی</option>
-                        <option value="کارشناسی ارشد" {% if v == 'کارشناسی ارشد' %}selected{% endif %}>کارشناسی ارشد</option>
-                        <option value="دکتری" {% if v == 'دکتری' %}selected{% endif %}>دکتری</option>
-                        <option value="دیگر" {% if v == 'دیگر' %}selected{% endif %}>دیگر</option>
-                    </select>
-                {% elif h == 'گواهی' %}
-                    <select name="{{ h }}" required>
-                        <option value="خواهان گواهی هستم (50 هزار تومان)" {% if v == 'خواهان گواهی هستم (50 هزار تومان)' %}selected{% endif %}>خواهان گواهی هستم (50 هزار تومان)</option>
-                        <option value="خواهان گواهی نیستم (رایگان)" {% if v == 'خواهان گواهی نیستم (رایگان)' %}selected{% endif %}>خواهان گواهی نیستم (رایگان)</option>
-                    </select>
-                {% else %}
-                    <input type="text" name="{{ h }}" value="{{ v }}" required>
-                {% endif %}
-            {% else %}
-                <label>فیش واریزی:</label>
-                {% if v %}
-                    <p style="margin-top: 0; margin-bottom: 1rem;"><a href="/uploads/{{ v }}" target="_blank" class="receipt-link">مشاهده فایل فعلی: {{ v }}</a></p>
-                {% else %}
-                    <p style="margin-top: 0; margin-bottom: 1rem;">فیشی بارگذاری نشده است.</p>
-                {% endif %}
-            {% endif %}
-        {% endfor %}
-            <button type="submit">ذخیره تغییرات</button>
-            <a href="/admin_delete/{{index}}" class="btn-delete" onclick="return confirm('آیا از حذف این رکورد مطمئن هستید؟');">حذف رکورد</a>
-        </form>
-    </div>
+<div class="card">
+    <h1>✅ ثبت‌نام شما با موفقیت انجام شد!</h1>
+    <p>اطلاعات شما پس از بررسی فیش واریزی (در صورت درخواست گواهی)، نهایی خواهد شد.</p>
+    <p>لطفاً برای دریافت اطلاعات تکمیلی در کانال تلگرام ما عضو شوید.</p>
+    <a href="https://t.me/article_workshop1" class="btn" target="_blank">ورود به کانال تلگرام</a>
+</div>
 </body>
 </html>
 """
 
 if __name__ == "__main__":
-    # در محیط Render این بخش نادیده گرفته می‌شود و gunicorn استفاده می‌شود.
-    # در توسعه محلی، می‌توانید آن را فعال کنید.
-    # app.run(debug=True)
-    pass
+    # در محیط رندر، gunicorn یا مشابه آن سرویس‌دهی را انجام می‌دهد و این بلاک اجرا نمی‌شود.
+    # اما اگر به صورت محلی اجرا شود، از پورت 5000 استفاده می‌کند.
+    # در محیط رندر مطمئن شوید که Webhook تلگرام را به مسیر /SECRET_KEY تنظیم کرده‌اید.
+    app.run(debug=True)
