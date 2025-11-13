@@ -255,7 +255,8 @@ def save_to_csv(final_dict):
 def index():
     if not FORM_ACTIVE:
         return inactive_page()
-    session.clear()
+    # در شروع کار سشن پاک شود
+    session.clear() 
     return render_template_string(rules_html)
 
 @app.route("/start_form", methods=["POST"])
@@ -270,7 +271,11 @@ def start_form():
 def form_page():
     if not FORM_ACTIVE:
         return inactive_page()
-    if session.get("step") != "form":
+    
+    # --- تغییر کلیدی برای اجازه بازگشت به عقب ---
+    # اگر کاربر در هر یک از مراحل بعدی باشد، اجازه دارد به این صفحه برگردد و آن را ببیند.
+    allowed_steps = ["form", "certificate", "payment"]
+    if session.get("step") not in allowed_steps:
         return redirect("/")
 
     if request.method == "POST":
@@ -285,7 +290,11 @@ def form_page():
 def certificate_choice():
     if not FORM_ACTIVE:
         return inactive_page()
-    if session.get("step") != "certificate":
+    
+    # --- تغییر کلیدی برای اجازه بازگشت به عقب ---
+    # اگر کاربر در مرحله پرداخت باشد، اجازه دارد به این صفحه برگردد.
+    allowed_steps = ["certificate", "payment"]
+    if session.get("step") not in allowed_steps:
         return redirect("/")
 
     if request.method == "POST":
@@ -299,10 +308,18 @@ def certificate_choice():
             session["step"] = "payment"
             return redirect("/payment_upload")
         else:
+            # مسیر بدون نیاز به پرداخت (ثبت نهایی)
             final_data = session.pop("reg_data")
-            save_to_csv(final_data)
-            send_to_telegram(final_data)
-            session.clear()
+            # --- مرحله نهایی: ذخیره و ارسال ---
+            try:
+                save_to_csv(final_data)
+                send_to_telegram(final_data)
+            except Exception as e:
+                # اگر در ذخیره یا ارسال خطا بود، کاربر را نگه نمی‌داریم، اما خطا را ثبت می‌کنیم.
+                print("❌ خطا در ثبت نهایی بدون فیش:", e)
+
+            # --- هدایت به صفحه تشکر ---
+            session["step"] = "thanks" # مرحله را برای صفحه thanks تنظیم می‌کنیم
             return redirect("/thanks")
 
     return render_template_string(certificate_html)
@@ -316,6 +333,7 @@ def payment_upload():
         return redirect("/")
 
     if request.method == "POST":
+        # بررسی و ذخیره فایل
         file = request.files.get("receipt_file")
         if not file or file.filename == "":
             return Response("خطا در ارسال فیش. لطفاً فایل دیگری را امتحان کنید.", status=400)
@@ -331,17 +349,21 @@ def payment_upload():
             print("❌ خطا در ذخیره فایل:", e)
             return Response("خطا در ذخیره فیش. لطفاً دوباره تلاش کنید.", status=500)
 
+        # ثبت نهایی اطلاعات
         try:
             final_data = session.pop("reg_data", {})
             final_data["receipt_file"] = unique_filename
             save_to_csv(final_data)
             send_to_telegram(final_data, receipt_filepath=filepath)
         except Exception as e:
-            print("❌ خطا در ارسال به تلگرام:", e)
-            return Response("خطا در ارسال فیش. لطفاً فایل دیگری را امتحان کنید.", status=500)
+            print("❌ خطا در ثبت نهایی (CSV/Telegram):", e)
+            # در صورت خطا، فیش ذخیره شده است، اما کاربر را به صفحه خطا یا تلاش مجدد نمی‌فرستیم
+            # بهتر است در این حالت هم به صفحه تشکر برود و از طریق لاگ‌ها پیگیری شود
+            pass
 
-        session.clear() # پاک کردن اطلاعات سشن برای امنیت
-        return redirect("/thanks") # هدایت کاربر به صفحه تشکر
+        # --- گام نهایی: هدایت به صفحه تشکر ---
+        session["step"] = "thanks" # تنظیم مرحله برای صفحه تشکر
+        return redirect("/thanks")
 
     return render_template_string(payment_upload_html)
 
@@ -350,8 +372,15 @@ def payment_upload():
 def thanks():
     if not FORM_ACTIVE:
         return inactive_page()
+    
+    # --- بررسی مرحله نهایی ---
+    # تنها اگر کاربری از مسیر اتمام ثبت نام (payment_upload یا certificate_choice) آمده باشد، اجازه ورود دارد.
     if session.get("step") != "thanks":
         return redirect("/")
+    
+    # در اینجا سشن را پاک می‌کنیم، بعد از اینکه مطمئن شدیم کاربر صفحه تشکر را دیده است.
+    session.clear() 
+    
     return render_template_string(thanks_html)
 
 # ---------------- Admin Routes -----------------
@@ -1074,5 +1103,6 @@ button:hover { background:linear-gradient(90deg,#218838,#1e7e34); transform:scal
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+
 
 
