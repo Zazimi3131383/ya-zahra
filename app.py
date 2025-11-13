@@ -5,8 +5,6 @@ from flask import (
     request,
     redirect,
     send_file,
-    url_for,
-    Response,
     session,
     Response,
     send_from_directory,
@@ -251,6 +249,8 @@ def save_to_csv(final_dict):
             }
         )
 
+# ---------------- Routes -----------------
+
 @app.route("/", methods=["GET"])
 def index():
     if not FORM_ACTIVE:
@@ -263,10 +263,9 @@ def index():
 def start_form():
     if not FORM_ACTIVE:
         return inactive_page()
-    # سشن را پاک می‌کنیم تا مطمئن شویم هیچ داده قبلی وجود ندارد
-    session.clear() 
+    session.clear()
     session["step"] = "form"
-    return redirect(url_for('form_page'))
+    return redirect("/form")
     
 @app.route("/form", methods=["GET", "POST"])
 def form_page():
@@ -274,14 +273,15 @@ def form_page():
         return inactive_page()
     
     # --- تغییر کلیدی برای اجازه بازگشت به عقب ---
+    # اگر کاربر در هر یک از مراحل بعدی باشد، اجازه دارد به این صفحه برگردد و آن را ببیند.
     allowed_steps = ["form", "certificate", "payment"]
     if session.get("step") not in allowed_steps:
-        return redirect(url_for('index'))
+        return redirect("/")
 
     if request.method == "POST":
         session["reg_data"] = request.form.to_dict()
         session["step"] = "certificate"
-        return redirect(url_for('certificate_choice'))
+        return redirect("/certificate")
 
     return render_template_string(form_html)
 
@@ -292,35 +292,35 @@ def certificate_choice():
         return inactive_page()
     
     # --- تغییر کلیدی برای اجازه بازگشت به عقب ---
+    # اگر کاربر در مرحله پرداخت باشد، اجازه دارد به این صفحه برگردد.
     allowed_steps = ["certificate", "payment"]
     if session.get("step") not in allowed_steps:
-        return redirect(url_for('index'))
+        return redirect("/")
 
     if request.method == "POST":
         choice = request.form.get("certificate")
         if not session.get("reg_data"):
-            return redirect(url_for('index'))
+            return redirect("/")
 
         session["reg_data"]["certificate"] = choice
         
         if choice and "خواهان گواهی هستم" in choice:
             session["step"] = "payment"
-            return redirect(url_for('payment_upload'))
+            return redirect("/payment_upload")
         else:
             # مسیر بدون نیاز به پرداخت (ثبت نهایی)
             final_data = session.pop("reg_data")
-            
+            # --- مرحله نهایی: ذخیره و ارسال ---
             try:
                 save_to_csv(final_data)
                 send_to_telegram(final_data)
-                # اگر موفقیت‌آمیز بود، به صفحه تشکر می‌رود
-                session["step"] = "thanks" 
-                return redirect(url_for('thanks'))
             except Exception as e:
-                print(f"❌ خطا در ثبت نهایی بدون فیش: {e}")
-                # در صورت خطا، کاربر را به صفحه خطا یا دوباره به همین مرحله برمی‌گردانیم
-                return Response("خطای سیستمی در ثبت نهایی رخ داد. لطفاً با پشتیبانی تماس بگیرید.", status=500)
+                # اگر در ذخیره یا ارسال خطا بود، کاربر را نگه نمی‌داریم، اما خطا را ثبت می‌کنیم.
+                print("❌ خطا در ثبت نهایی بدون فیش:", e)
 
+            # --- هدایت به صفحه تشکر ---
+            session["step"] = "thanks" # مرحله را برای صفحه thanks تنظیم می‌کنیم
+            return redirect("/thanks")
 
     return render_template_string(certificate_html)
 
@@ -329,49 +329,41 @@ def certificate_choice():
 def payment_upload():
     if not FORM_ACTIVE:
         return inactive_page()
-    # در اینجا نیازی به اجازه بازگشت نیست، زیرا این مرحله نهایی است.
     if session.get("step") != "payment":
-        return redirect(url_for('index'))
+        return redirect("/")
 
     if request.method == "POST":
-        # 1. بررسی و ذخیره فایل
+        # بررسی و ذخیره فایل
         file = request.files.get("receipt_file")
         if not file or file.filename == "":
             return Response("خطا در ارسال فیش. لطفاً فایل دیگری را امتحان کنید.", status=400)
 
         os.makedirs("uploads", exist_ok=True)
         filename = file.filename
-        # از نام کاربر در سشن برای ساخت نام فایل یکتا استفاده می‌کنیم (اگر موجود باشد)
-        user_name = session.get("reg_data", {}).get("name", "unknown") 
-        unique_filename = f"{int(time.time())}_{user_name}_{filename}"
+        unique_filename = f"{int(time.time())}_{filename}"
         filepath = os.path.join("uploads", unique_filename)
 
         try:
             file.save(filepath)
         except Exception as e:
-            print(f"❌ خطا در ذخیره فایل: {e}")
+            print("❌ خطا در ذخیره فایل:", e)
             return Response("خطا در ذخیره فیش. لطفاً دوباره تلاش کنید.", status=500)
 
-        # 2. ثبت نهایی اطلاعات و سشن
+        # ثبت نهایی اطلاعات
         try:
-            # داده را از سشن بیرون می‌کشیم
             final_data = session.pop("reg_data", {})
             final_data["receipt_file"] = unique_filename
-            
             save_to_csv(final_data)
             send_to_telegram(final_data, receipt_filepath=filepath)
-            
-            # --- گام نهایی: هدایت به صفحه تشکر (فقط در صورت موفقیت) ---
-            session["step"] = "thanks" # تنظیم مرحله برای صفحه تشکر
-            return redirect(url_for('thanks'))
-
         except Exception as e:
-            # اگر فایل ذخیره شد اما ثبت نهایی (CSV/Telegram) خطا داد
-            print(f"❌ خطا در ثبت نهایی (CSV/Telegram): {e}")
-            # به کاربر اجازه می‌دهیم دوباره تلاش کند یا با پشتیبانی تماس بگیرد.
-            # سشن step را به حالت قبل برمی‌گردانیم.
-            session["step"] = "payment" 
-            return Response("خطا در نهایی‌سازی ثبت نام (ارسال به سرور). لطفاً دوباره تلاش کنید.", status=500)
+            print("❌ خطا در ثبت نهایی (CSV/Telegram):", e)
+            # در صورت خطا، فیش ذخیره شده است، اما کاربر را به صفحه خطا یا تلاش مجدد نمی‌فرستیم
+            # بهتر است در این حالت هم به صفحه تشکر برود و از طریق لاگ‌ها پیگیری شود
+            pass
+
+        # --- گام نهایی: هدایت به صفحه تشکر ---
+        session["step"] = "thanks" # تنظیم مرحله برای صفحه تشکر
+        return redirect("/thanks")
 
     return render_template_string(payment_upload_html)
 
@@ -381,17 +373,16 @@ def thanks():
     if not FORM_ACTIVE:
         return inactive_page()
     
-    # --- بررسی مرحله نهایی (علت بازگشت به صفحه اول در مشکل شما) ---
-    # اگر کاربر به این صفحه هدایت شده باشد، سشن او باید برابر با "thanks" باشد.
+    # --- بررسی مرحله نهایی ---
+    # تنها اگر کاربری از مسیر اتمام ثبت نام (payment_upload یا certificate_choice) آمده باشد، اجازه ورود دارد.
     if session.get("step") != "thanks":
-        # اگر سشن "thanks" نباشد، یعنی کاربر مستقیم آدرس را زده یا مشکلی در هدایت بوده.
-        return redirect(url_for('index'))
+        return redirect("/")
     
-    # اگر با موفقیت وارد شد، سشن را پاک می‌کنیم تا ثبت نام بعدی انجام شود.
+    # در اینجا سشن را پاک می‌کنیم، بعد از اینکه مطمئن شدیم کاربر صفحه تشکر را دیده است.
     session.clear() 
     
     return render_template_string(thanks_html)
-    
+
 # ---------------- Admin Routes -----------------
 
 @app.route("/admin", methods=["GET"])
@@ -1112,7 +1103,5 @@ button:hover { background:linear-gradient(90deg,#218838,#1e7e34); transform:scal
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
-
-
 
 
