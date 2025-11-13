@@ -378,9 +378,6 @@ def thanks():
     if session.get("step") != "thanks":
         return redirect("/")
     
-    # در اینجا سشن را پاک می‌کنیم، بعد از اینکه مطمئن شدیم کاربر صفحه تشکر را دیده است.
-    session.clear() 
-    
     return render_template_string(thanks_html)
 
 # ---------------- Admin Routes -----------------
@@ -1103,5 +1100,6 @@ button:hover { background:linear-gradient(90deg,#218838,#1e7e34); transform:scal
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+
 
 
