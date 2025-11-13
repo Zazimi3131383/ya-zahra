@@ -350,7 +350,7 @@ def payment_upload():
 def thanks():
     if not FORM_ACTIVE:
         return inactive_page()
-    if session.get("step") not in [None, "done"]:
+    if session.get("step") != "thanks":
         return redirect("/")
     return render_template_string(thanks_html)
 
@@ -1074,3 +1074,4 @@ button:hover { background:linear-gradient(90deg,#218838,#1e7e34); transform:scal
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+
